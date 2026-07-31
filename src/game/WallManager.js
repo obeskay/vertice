@@ -199,9 +199,9 @@ export class WallManager {
     } else if (this.patternStep >= this.patternLength) {
       // Con pocos lados, solo patrones legibles de 1 gap
       let patterns;
-      if (sides <= 3) patterns = Math.random() < 0.65 ? ['SINGLE_GAP'] : ['SINGLE_GAP', 'SPIRAL'];
-      else if (sides === 4) patterns = ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'STAGGER'];
-      else patterns = ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'STAGGER', 'VORTEX', 'STAIRS'];
+      if (sides <= 3) patterns = Math.random() < 0.65 ? ['SINGLE_GAP', 'TUNNEL'] : ['SINGLE_GAP', 'SPIRAL', 'TUNNEL'];
+      else if (sides === 4) patterns = ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'STAGGER', 'ZIG_ZAG', 'TUNNEL'];
+      else patterns = ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'STAGGER', 'VORTEX', 'STAIRS', 'ZIG_ZAG', 'SLALOM', 'TUNNEL'];
       let next = patterns[Math.floor(Math.random() * patterns.length)];
       if (next === this.currentPattern) {
         next = patterns[(patterns.indexOf(next) + 1) % patterns.length];
@@ -218,6 +218,7 @@ export class WallManager {
 
     switch (this.currentPattern) {
       case 'SINGLE_GAP':
+      case 'TUNNEL':
         blockedSectors[this.patternGapIndex] = false;
         break;
 
@@ -239,6 +240,20 @@ export class WallManager {
         }
         blockedSectors[this.patternGapIndex] = false;
         break;
+
+      case 'ZIG_ZAG': {
+        const offset = (this.patternStep % 2 === 0) ? 1 : -1;
+        this.patternGapIndex = (this.patternGapIndex + offset + sides) % sides;
+        blockedSectors[this.patternGapIndex] = false;
+        break;
+      }
+
+      case 'SLALOM': {
+        const stepOffset = (this.patternStep % 2 === 0) ? (2 * this.spiralDirection) : (-1 * this.spiralDirection);
+        this.patternGapIndex = (this.patternGapIndex + stepOffset + sides) % sides;
+        blockedSectors[this.patternGapIndex] = false;
+        break;
+      }
 
       case 'VORTEX': {
         this.patternGapIndex = (this.patternGapIndex + this.spiralDirection + sides) % sides;

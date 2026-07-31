@@ -79,6 +79,7 @@ class Game {
 
     this.hud = new HUDManager({
       onStartGame: () => this.startGame(),
+      onResumeGame: () => this.resume(),
       onToggleAudio: () => {
         this.audio.init();
         const isMuted = !this.audio.isMuted;
@@ -248,7 +249,8 @@ class Game {
     this.timeScale = 0; // HITSTOP: el mundo se congela un instante
 
     this.audio.playExplosionSound();
-    this.score.commit();
+    this.vibrate(60);
+    this.score.commit(this.level.ranks[this.level.currentRankIndex].name);
 
     const pos = this.player.getRenderPosition();
     this.particles.triggerExplosion(pos.x, pos.y, this.palette.getBlended('primary'));
@@ -343,6 +345,18 @@ class Game {
   }
 
   /** Un paso de simulación a timestep fijo */
+  vibrate(pattern) {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      try { navigator.vibrate(pattern); } catch (e) {}
+    }
+  }
+
+  _performLaneMove(dir) {
+    this.player.queueLaneMove(dir);
+    this.audio.playLaneMoveSound(dir);
+    this.vibrate(8);
+  }
+
   step(dt) {
     this.score.update(dt);
 
@@ -354,6 +368,7 @@ class Game {
       this.renderer.triggerScreenShake(this.reducedMotion ? 0.15 : 0.45);
       this.renderer.triggerFovKick(7);
       this.audio.playRankUp();
+      this.vibrate([20, 40, 20]);
       this.fxShockwave(0, 0, this.palette.getBlended('primary'), 14);
     }
     if (levelStatus.sides !== this._lastSides) {
@@ -368,7 +383,7 @@ class Game {
 
     // INPUT POR CARRILES: flanco de subida = 1 salto; hold = auto-repeat
     if (inputDir !== 0 && this._prevInputDir === 0) {
-      this.player.queueLaneMove(inputDir);
+      this._performLaneMove(inputDir);
       this._holdElapsed = 0;
       this._repeatElapsed = 0;
     } else if (inputDir !== 0) {
@@ -377,7 +392,7 @@ class Game {
         this._repeatElapsed += dt;
         if (this._repeatElapsed >= 0.105) {
           this._repeatElapsed = 0;
-          this.player.queueLaneMove(inputDir);
+          this._performLaneMove(inputDir);
         }
       }
     }

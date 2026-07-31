@@ -7,6 +7,7 @@ export class ScoreSystem {
   constructor() {
     this.currentTime = 0;
     this.bestTime = this.loadBestScore();
+    this.rankScores = this.loadRankScores();
     this.isNewRecord = false;
     this.nearMisses = 0;
   }
@@ -22,7 +23,6 @@ export class ScoreSystem {
     if (this.currentTime > this.bestTime) {
       this.bestTime = this.currentTime;
       this.isNewRecord = true;
-      // NO escribir aquí: localStorage es síncrono. Se persiste en commit().
     }
   }
 
@@ -30,10 +30,17 @@ export class ScoreSystem {
     this.nearMisses++;
   }
 
-  /** Persiste el récord (llamar al morir, una sola vez por partida) */
-  commit() {
+  /** Persiste el récord y estadísticas por rank (llamar al morir) */
+  commit(rankName = '') {
     if (this.isNewRecord) {
       this.saveBestScore(this.bestTime);
+    }
+    if (rankName) {
+      const currentRankBest = this.rankScores[rankName] || 0;
+      if (this.currentTime > currentRankBest) {
+        this.rankScores[rankName] = this.currentTime;
+        this.saveRankScores(this.rankScores);
+      }
     }
   }
 
@@ -65,8 +72,21 @@ export class ScoreSystem {
   saveBestScore(score) {
     try {
       localStorage.setItem('vertice_best_score', score.toString());
+    } catch (e) {}
+  }
+
+  loadRankScores() {
+    try {
+      const saved = localStorage.getItem('vertice_rank_scores');
+      return saved ? JSON.parse(saved) : {};
     } catch (e) {
-      // storage no disponible: ignorar
+      return {};
     }
+  }
+
+  saveRankScores(scores) {
+    try {
+      localStorage.setItem('vertice_rank_scores', JSON.stringify(scores));
+    } catch (e) {}
   }
 }

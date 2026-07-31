@@ -244,6 +244,28 @@ export class AudioEngine {
     });
   }
 
+  playLaneMoveSound(dir = 1) {
+    if (!this.ctx || this.isMuted) return;
+    const time = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    const baseFreq = dir > 0 ? 520 : 440;
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(baseFreq, time);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.3, time + 0.035);
+
+    gain.gain.setValueAtTime(0.18, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.035);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(time);
+    osc.stop(time + 0.035);
+  }
+
   playUiClick() {
     if (!this.ctx || this.isMuted) return;
     const time = this.ctx.currentTime;

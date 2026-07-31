@@ -28,6 +28,8 @@ export class HUDManager {
     // Action Buttons
     this.btnStart = document.getElementById('btn-start');
     this.btnRetry = document.getElementById('btn-retry') || document.getElementById('btn-start');
+    this.btnResume = document.getElementById('btn-resume');
+    this.btnPauseRestart = document.getElementById('btn-pause-restart');
     this.btnAudioToggle = document.getElementById('btn-audio-toggle');
     this.btnPaletteToggle = document.getElementById('btn-palette-toggle');
     this.btnSyncToggle = document.getElementById('btn-sync-toggle');
@@ -68,6 +70,19 @@ export class HUDManager {
 
     if (this.btnRetry && this.btnRetry !== this.btnStart) {
       this.btnRetry.addEventListener('click', () => {
+        this.hideAllOverlays();
+        this.callbacks.onStartGame();
+      });
+    }
+
+    if (this.btnResume && this.callbacks.onResumeGame) {
+      this.btnResume.addEventListener('click', () => {
+        this.callbacks.onResumeGame();
+      });
+    }
+
+    if (this.btnPauseRestart) {
+      this.btnPauseRestart.addEventListener('click', () => {
         this.hideAllOverlays();
         this.callbacks.onStartGame();
       });
