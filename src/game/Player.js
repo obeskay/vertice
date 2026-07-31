@@ -128,8 +128,8 @@ export class Player {
     while (diff > Math.PI) diff -= TAU;
     while (diff < -Math.PI) diff += TAU;
 
-    // Control proporcional: llegada rápida y suave (ease-out), sin rebote
-    const stiffness = turbo ? 30 : 18;
+    // Control proporcional: llegada ultra rápida y precisa al presionar Turbo (SHIFT)
+    const stiffness = turbo ? 55 : 22;
     this.vel = diff * stiffness;
     this.angle = (this.angle + this.vel * deltaTime) % TAU;
     this.angle = (this.angle + TAU) % TAU;
@@ -140,7 +140,7 @@ export class Player {
       this.vel = 0;
     }
 
-    this.turboActive = Math.abs(this.vel) > 6;
+    this.turboActive = turbo || Math.abs(this.vel) > 6;
   }
 
   /** Render interpolado */
@@ -162,7 +162,7 @@ export class Player {
     this.shipMesh.rotation.z = this.tilt;
     this.shipEdges.rotation.z = this.tilt;
 
-    const stretch = this.turboActive ? 1.22 : 1;
+    const stretch = this.turboActive ? 1.45 : 1;
     const cur = this.shipMesh.scale.x;
     const next = cur + (stretch - cur) * Math.min(1, dt * 10);
     this.shipMesh.scale.set(next, 1, 1);

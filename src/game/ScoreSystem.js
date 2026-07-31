@@ -30,7 +30,16 @@ export class ScoreSystem {
     this.nearMisses++;
   }
 
-  /** Persiste el récord y estadísticas por rank (llamar al morir) */
+  getGrade(seconds = this.currentTime) {
+    if (seconds >= 80) return { grade: 'S+', title: 'DIOS VÉRTICE' };
+    if (seconds >= 55) return { grade: 'S', title: 'LEYENDA' };
+    if (seconds >= 35) return { grade: 'A', title: 'AS DE ACERO' };
+    if (seconds >= 20) return { grade: 'B', title: 'MAESTRO' };
+    if (seconds >= 10) return { grade: 'C', title: 'PILOTO' };
+    return { grade: 'D', title: 'NOVATO' };
+  }
+
+  /** Persiste el récord, estadísticas por rank y leaderboard (llamar al morir) */
   commit(rankName = '') {
     if (this.isNewRecord) {
       this.saveBestScore(this.bestTime);
@@ -41,6 +50,34 @@ export class ScoreSystem {
         this.rankScores[rankName] = this.currentTime;
         this.saveRankScores(this.rankScores);
       }
+    }
+    this.recordRun(rankName);
+  }
+
+  recordRun(rankName = '') {
+    try {
+      const leaderboard = this.loadLeaderboard();
+      const runInfo = {
+        time: this.currentTime,
+        formattedTime: this.getFormattedCurrentTime(),
+        grade: this.getGrade().grade,
+        rankName,
+        nearMisses: this.nearMisses,
+        date: new Date().toLocaleDateString()
+      };
+      leaderboard.push(runInfo);
+      leaderboard.sort((a, b) => b.time - a.time);
+      const top5 = leaderboard.slice(0, 5);
+      localStorage.setItem('vertice_leaderboard', JSON.stringify(top5));
+    } catch (e) {}
+  }
+
+  loadLeaderboard() {
+    try {
+      const saved = localStorage.getItem('vertice_leaderboard');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
     }
   }
 

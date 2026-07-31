@@ -1,14 +1,14 @@
-import { Renderer } from './engine/Renderer.js?v=1.0.1';
-import { AudioEngine } from './engine/AudioEngine.js?v=1.0.1';
-import { MusicSync } from './engine/MusicSync.js?v=1.0.1';
-import { ParticleSystem } from './engine/ParticleSystem.js?v=1.0.1';
-import { PaletteManager } from './engine/PaletteManager.js?v=1.0.1';
-import { Player } from './game/Player.js?v=1.0.1';
-import { WallManager } from './game/WallManager.js?v=1.0.1';
-import { PowerUpManager } from './game/PowerUpManager.js?v=1.0.1';
-import { LevelSystem } from './game/LevelSystem.js?v=1.0.1';
-import { ScoreSystem } from './game/ScoreSystem.js?v=1.0.1';
-import { HUDManager } from './ui/HUDManager.js?v=1.0.1';
+import { Renderer } from './engine/Renderer.js?v=1.0.2';
+import { AudioEngine } from './engine/AudioEngine.js?v=1.0.2';
+import { MusicSync } from './engine/MusicSync.js?v=1.0.2';
+import { ParticleSystem } from './engine/ParticleSystem.js?v=1.0.2';
+import { PaletteManager } from './engine/PaletteManager.js?v=1.0.2';
+import { Player } from './game/Player.js?v=1.0.2';
+import { WallManager } from './game/WallManager.js?v=1.0.2';
+import { PowerUpManager } from './game/PowerUpManager.js?v=1.0.2';
+import { LevelSystem } from './game/LevelSystem.js?v=1.0.2';
+import { ScoreSystem } from './game/ScoreSystem.js?v=1.0.2';
+import { HUDManager } from './ui/HUDManager.js?v=1.0.2';
 
 /**
  * VÉRTICE — game loop de precisión:
@@ -262,12 +262,14 @@ class Game {
   showGameOver() {
     this.state = 'GAMEOVER';
     this.timeScale = 1;
+    const gradeObj = this.score.getGrade();
     this.hud.showGameOver(
       this.score.getFormattedCurrentTime(),
       this.score.getFormattedBestTime(),
       this.score.isNewRecord,
       this.score.nearMisses,
-      this.level.ranks[this.level.currentRankIndex].name
+      this.level.ranks[this.level.currentRankIndex].name,
+      gradeObj
     );
   }
 

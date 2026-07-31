@@ -154,25 +154,28 @@ export class Renderer {
 
       // Contorno de acento (anillo de líneas del polígono)
       const outlinePts = [];
-      if (sides < 3) {
-        const hw = radius, hh = radius * 0.26;
-        outlinePts.push(
-          new THREE.Vector3(-hw, -hh, 0.13), new THREE.Vector3(hw, -hh, 0.13),
-          new THREE.Vector3(hw, hh, 0.13), new THREE.Vector3(-hw, hh, 0.13),
-          new THREE.Vector3(-hw, -hh, 0.13)
-        );
-      } else {
-        for (let i = 0; i <= sides; i++) {
-          const a = (i % sides) * sectorAngle;
-          outlinePts.push(new THREE.Vector3(Math.cos(a) * radius, Math.sin(a) * radius, 0.13));
-        }
+      const innerOutlinePts = [];
+      const innerRadius = radius * 0.55;
+
+      for (let i = 0; i <= sides; i++) {
+        const a = (i % sides) * sectorAngle;
+        outlinePts.push(new THREE.Vector3(Math.cos(a) * radius, Math.sin(a) * radius, 0.13));
+        innerOutlinePts.push(new THREE.Vector3(Math.cos(a) * innerRadius, Math.sin(a) * innerRadius, 0.14));
       }
+
       this.centerOutlineMat = new THREE.LineBasicMaterial({ color: 0x00ff66 });
       this.centerEdges = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(outlinePts),
         this.centerOutlineMat
       );
       this.centerGroup.add(this.centerEdges);
+
+      // Emblema concéntrico interno
+      this.centerInnerEdges = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(innerOutlinePts),
+        this.centerOutlineMat
+      );
+      this.centerGroup.add(this.centerInnerEdges);
     } else {
       if (this.centerMat && typeof colorHex === 'number') {
         this.centerMat.color.setHex(colorHex);
@@ -239,6 +242,13 @@ export class Renderer {
     }
 
     this.scene.rotation.z = worldRotation;
+
+    // Pulso rítmico y dinámico de la figura central al ritmo del bombo
+    const centerPulse = 1 + audioBeatPulse * 0.075;
+    this.centerGroup.scale.set(centerPulse, centerPulse, 1);
+    if (this.centerInnerEdges) {
+      this.centerInnerEdges.rotation.z = worldRotation * 0.45;
+    }
 
     // Parallax de gajos: contra-rotan 0.38x → giran a 0.62x del mundo.
     // La ilusión: el túnel respira detrás de los muros (hipnótico, no estrobo).

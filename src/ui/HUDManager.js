@@ -43,6 +43,8 @@ export class HUDManager {
     this.finalBest = document.getElementById('final-best');
     this.finalNearmiss = document.getElementById('final-nearmiss') || document.getElementById('final-near-misses');
     this.finalRank = document.getElementById('final-rank');
+    this.finalGrade = document.getElementById('final-grade');
+    this.finalTitle = document.getElementById('final-title');
 
     // Touch Controls
     this.touchLeft = document.getElementById('touch-left');
@@ -230,11 +232,13 @@ export class HUDManager {
     }, 2500);
   }
 
-  showGameOver(finalTime, bestTime, isNewRecord, nearMisses = 0, rankName = '') {
+  showGameOver(finalTime, bestTime, isNewRecord, nearMisses = 0, rankName = '', gradeObj = { grade: 'C', title: 'PILOTO' }) {
     if (this.finalTime) this.finalTime.innerText = finalTime;
     if (this.finalBest) this.finalBest.innerText = bestTime;
     if (this.finalNearmiss) this.finalNearmiss.innerText = nearMisses.toString();
     if (this.finalRank) this.finalRank.innerText = rankName;
+    if (this.finalGrade) this.finalGrade.innerText = gradeObj.grade || 'C';
+    if (this.finalTitle) this.finalTitle.innerText = gradeObj.title || 'PILOTO';
     if (this.recordBadge) this.recordBadge.classList.toggle('hidden', !isNewRecord);
 
     if (this.statsSummary) this.statsSummary.classList.remove('hidden');
