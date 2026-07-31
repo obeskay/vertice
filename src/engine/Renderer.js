@@ -267,8 +267,8 @@ export class Renderer {
     const wedgePulse = 1 + audioBeatPulse * 0.012;
     this.wedgeGroup.scale.set(wedgePulse, wedgePulse, 1);
 
-    // 2D Cartoon Neobrutalism Post-Processing Shader Pass
-    this.shaderPass.render(this.scene, this.camera, this.totalTime, this.turboAmount, audioBeatPulse);
+    // 3D Scene Direct Render (Crisp 60fps+ Neobrutalist visual output)
+    this.renderer.render(this.scene, this.camera);
   }
 
   setBackgroundColor(colorHex) {
