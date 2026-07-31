@@ -24,7 +24,7 @@ export class WallManager {
     this.activeRings = [];
     this.spawnTimer = 0;
     this.spawnInterval = 1.6;
-    this.wallThickness = 0.4;
+    this.wallThickness = 0.55; // muros robustos: legibles a lo lejos (legibilidad > realismo)
     this.centerRadius = 1.0;
     this.spawnRadius = 16.0;
     this.nearMissMargin = 0.16;

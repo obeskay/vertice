@@ -56,9 +56,10 @@ export class PaletteManager {
     this.colors.primary = this.hslToHex(this.currentHue, 1.0, 0.50);
     this.colors.walls = this.colors.primary;
 
-    // Gajos del fondo: dos tonos profundos del mismo hue (la simetría hipnótica)
-    this.colors.wedgeA = this.hslToHex(this.currentHue, 0.42, 0.13);
-    this.colors.wedgeB = this.hslToHex(this.currentHue, 0.38, 0.075);
+    // Gajos del fondo: dos tonos con CONTRASTE real del hue (la simetría
+    // hipnótica estilo Super Hexagon — legibles, no casi-negros)
+    this.colors.wedgeA = this.hslToHex(this.currentHue, 0.55, 0.235);
+    this.colors.wedgeB = this.hslToHex(this.currentHue, 0.50, 0.135);
 
     // Centro poligonal profundo y fondo casi negro tintado (nunca #000 puro)
     this.colors.center = this.hslToHex(this.currentHue, 0.50, 0.13);
