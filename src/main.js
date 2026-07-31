@@ -1,14 +1,14 @@
-import { Renderer } from './engine/Renderer.js?v=1.0.2';
-import { AudioEngine } from './engine/AudioEngine.js?v=1.0.2';
-import { MusicSync } from './engine/MusicSync.js?v=1.0.2';
-import { ParticleSystem } from './engine/ParticleSystem.js?v=1.0.2';
-import { PaletteManager } from './engine/PaletteManager.js?v=1.0.2';
-import { Player } from './game/Player.js?v=1.0.2';
-import { WallManager } from './game/WallManager.js?v=1.0.2';
-import { PowerUpManager } from './game/PowerUpManager.js?v=1.0.2';
-import { LevelSystem } from './game/LevelSystem.js?v=1.0.2';
-import { ScoreSystem } from './game/ScoreSystem.js?v=1.0.2';
-import { HUDManager } from './ui/HUDManager.js?v=1.0.2';
+import { Renderer } from './engine/Renderer.js?v=1.0.3';
+import { AudioEngine } from './engine/AudioEngine.js?v=1.0.3';
+import { MusicSync } from './engine/MusicSync.js?v=1.0.3';
+import { ParticleSystem } from './engine/ParticleSystem.js?v=1.0.3';
+import { PaletteManager } from './engine/PaletteManager.js?v=1.0.3';
+import { Player } from './game/Player.js?v=1.0.3';
+import { WallManager } from './game/WallManager.js?v=1.0.3';
+import { PowerUpManager } from './game/PowerUpManager.js?v=1.0.3';
+import { LevelSystem } from './game/LevelSystem.js?v=1.0.3';
+import { ScoreSystem } from './game/ScoreSystem.js?v=1.0.3';
+import { HUDManager } from './ui/HUDManager.js?v=1.0.3';
 
 /**
  * VÉRTICE — game loop de precisión:
@@ -562,14 +562,13 @@ class Game {
     this.walls.render(alpha);
     this.powerups.render(alpha, this.walls.centerRadius, this.walls.wallThickness);
 
-    // Trail del jugador cuando se mueve
-    if (this.state === 'PLAYING' && this.lastInputDir !== 0) {
+    const isTurboActive = (this.keys.turbo || this.touchTurbo) && this.state === 'PLAYING';
+    if (isTurboActive) {
       const pos = this.player.getRenderPosition();
       this.fxTrail(pos.x, pos.y);
     }
 
-    const renderRotation = this.prevWorldRotation + (this.worldRotation - this.prevWorldRotation) * alpha;
-    this.renderer.render(beatPulse, rawDt, renderRotation, frameMs);
+    this.renderer.render(beatPulse, rawDt, renderRotation, isTurboActive);
 
     requestAnimationFrame((t) => this.gameLoop(t));
   }

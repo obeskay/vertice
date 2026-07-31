@@ -1,9 +1,11 @@
 import * as THREE from 'three';
+import { ShaderPass } from './ShaderPass.js?v=1.0.2';
 
 /**
  * Renderer
  * Dramatic 3D Perspective camera with 100% crystal clear readability.
- * Zero light glare, high contrast, clean central polygon and screen shake.
+ * Zero light glare, high contrast, clean central polygon, screen shake,
+ * and 2D Cartoon Neobrutalism ShaderPass with Turbo motion warp.
  */
 export class Renderer {
   constructor(containerId) {
@@ -30,6 +32,11 @@ export class Renderer {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.container.appendChild(this.renderer.domElement);
+
+    // Custom Post-Processing Shader Pass (Cartoon Neobrutalism & Turbo Speed-Warp)
+    this.shaderPass = new ShaderPass(this.renderer, window.innerWidth, window.innerHeight);
+    this.totalTime = 0;
+    this.turboAmount = 0;
 
     // Central Polygon Mesh Group
     this.centerGroup = new THREE.Group();
@@ -207,12 +214,16 @@ export class Renderer {
     this._flashIntensity = intensity;
   }
 
-  render(audioBeatPulse = 0, deltaTime = 0.016, worldRotation = 0) {
+  render(audioBeatPulse = 0, deltaTime = 0.016, worldRotation = 0, turboActive = false) {
+    this.totalTime += deltaTime;
+    const targetTurbo = turboActive ? 1.0 : 0.0;
+    this.turboAmount += (targetTurbo - this.turboAmount) * Math.min(1, deltaTime * 12.0);
+
     if (this.fovKick > 0) {
       this.fovKick = Math.max(0, this.fovKick - deltaTime * 30.0);
     }
 
-    const targetFov = 65 + audioBeatPulse * 1.8 + this.fovKick;
+    const targetFov = 65 + audioBeatPulse * 1.8 + this.fovKick + this.turboAmount * 5.0;
     this.camera.fov += (targetFov - this.camera.fov) * 0.15;
     this.camera.updateProjectionMatrix();
 
@@ -256,7 +267,8 @@ export class Renderer {
     const wedgePulse = 1 + audioBeatPulse * 0.012;
     this.wedgeGroup.scale.set(wedgePulse, wedgePulse, 1);
 
-    this.renderer.render(this.scene, this.camera);
+    // 2D Cartoon Neobrutalism Post-Processing Shader Pass
+    this.shaderPass.render(this.scene, this.camera, this.totalTime, this.turboAmount, audioBeatPulse);
   }
 
   setBackgroundColor(colorHex) {
@@ -271,5 +283,8 @@ export class Renderer {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
+    if (this.shaderPass) {
+      this.shaderPass.setSize(window.innerWidth, window.innerHeight);
+    }
   }
 }
