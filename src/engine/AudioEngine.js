@@ -422,6 +422,29 @@ export class AudioEngine {
     osc.stop(time + 0.22);
   }
 
+  setTurboActive(active) {
+    if (!this.ctx || this.isMuted) return;
+    if (active && !this._turboActive) {
+      this._turboActive = true;
+      const time = this.ctx.currentTime;
+      
+      // Nitro Blast Sub-Impact & Jet Hiss
+      const subOsc = this.ctx.createOscillator();
+      const subGain = this.ctx.createGain();
+      subOsc.type = 'sawtooth';
+      subOsc.frequency.setValueAtTime(110, time);
+      subOsc.frequency.exponentialRampToValueAtTime(580, time + 0.18);
+      subGain.gain.setValueAtTime(0.35, time);
+      subGain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
+      subOsc.connect(subGain);
+      subGain.connect(this.masterGain);
+      subOsc.start(time);
+      subOsc.stop(time + 0.18);
+    } else if (!active) {
+      this._turboActive = false;
+    }
+  }
+
   update(deltaTime) {
     if (this.beatPulse > 0) {
       this.beatPulse = Math.max(0, this.beatPulse - deltaTime * 6.0);

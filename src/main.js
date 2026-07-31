@@ -1,14 +1,14 @@
-import { Renderer } from './engine/Renderer.js?v=1.0.6';
-import { AudioEngine } from './engine/AudioEngine.js?v=1.0.6';
-import { MusicSync } from './engine/MusicSync.js?v=1.0.6';
-import { ParticleSystem } from './engine/ParticleSystem.js?v=1.0.6';
-import { PaletteManager } from './engine/PaletteManager.js?v=1.0.6';
-import { Player } from './game/Player.js?v=1.0.6';
-import { WallManager } from './game/WallManager.js?v=1.0.6';
-import { PowerUpManager } from './game/PowerUpManager.js?v=1.0.6';
-import { LevelSystem } from './game/LevelSystem.js?v=1.0.6';
-import { ScoreSystem } from './game/ScoreSystem.js?v=1.0.6';
-import { HUDManager } from './ui/HUDManager.js?v=1.0.6';
+import { Renderer } from './engine/Renderer.js?v=1.0.7';
+import { AudioEngine } from './engine/AudioEngine.js?v=1.0.7';
+import { MusicSync } from './engine/MusicSync.js?v=1.0.7';
+import { ParticleSystem } from './engine/ParticleSystem.js?v=1.0.7';
+import { PaletteManager } from './engine/PaletteManager.js?v=1.0.7';
+import { Player } from './game/Player.js?v=1.0.7';
+import { WallManager } from './game/WallManager.js?v=1.0.7';
+import { PowerUpManager } from './game/PowerUpManager.js?v=1.0.7';
+import { LevelSystem } from './game/LevelSystem.js?v=1.0.7';
+import { ScoreSystem } from './game/ScoreSystem.js?v=1.0.7';
+import { HUDManager } from './ui/HUDManager.js?v=1.0.7';
 
 /**
  * VÉRTICE — game loop de precisión:
@@ -563,6 +563,7 @@ class Game {
     this.powerups.render(alpha, this.walls.centerRadius, this.walls.wallThickness);
 
     const isTurboActive = (this.keys.turbo || this.touchTurbo) && this.state === 'PLAYING';
+    this.audio.setTurboActive(isTurboActive);
     const renderRotation = this.prevWorldRotation + (this.worldRotation - this.prevWorldRotation) * alpha;
     this.renderer.render(beatPulse, rawDt, renderRotation, isTurboActive);
 

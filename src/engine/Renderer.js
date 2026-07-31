@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ShaderPass } from './ShaderPass.js?v=1.0.4';
+import { ShaderPass } from './ShaderPass.js?v=1.0.7';
 
 /**
  * Renderer
@@ -53,6 +53,32 @@ export class Renderer {
     this._wedgeSides = 0;
     this.wedgeMatA = new THREE.MeshBasicMaterial({ color: 0x141a18, side: THREE.DoubleSide });
     this.wedgeMatB = new THREE.MeshBasicMaterial({ color: 0x0c100f, side: THREE.DoubleSide });
+
+    // 3D Hyperspeed Nitro Speed Lines (Arcade Racing Nitro Lines)
+    this.speedLinesGroup = new THREE.Group();
+    const speedLinePts = [];
+    const NUM_SPEED_LINES = 64;
+    for (let i = 0; i < NUM_SPEED_LINES; i++) {
+      const angle = (i / NUM_SPEED_LINES) * Math.PI * 2 + (Math.random() - 0.5) * 0.08;
+      const r0 = 1.2 + Math.random() * 1.5;
+      const r1 = r0 + 2.5 + Math.random() * 4.0;
+      speedLinePts.push(
+        new THREE.Vector3(Math.cos(angle) * r0, Math.sin(angle) * r0, (Math.random() - 0.5) * 3),
+        new THREE.Vector3(Math.cos(angle) * r1, Math.sin(angle) * r1, (Math.random() - 0.5) * 3)
+      );
+    }
+    this.speedLinesMat = new THREE.LineBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0,
+      linewidth: 2
+    });
+    this.speedLinesMesh = new THREE.LineSegments(
+      new THREE.BufferGeometry().setFromPoints(speedLinePts),
+      this.speedLinesMat
+    );
+    this.speedLinesGroup.add(this.speedLinesMesh);
+    this.scene.add(this.speedLinesGroup);
 
     // Camera FOV Kick & Screen Shake
     this.fovKick = 0;
@@ -223,26 +249,44 @@ export class Renderer {
       this.fovKick = Math.max(0, this.fovKick - deltaTime * 30.0);
     }
 
-    const targetFov = 65 + audioBeatPulse * 1.8 + this.fovKick + this.turboAmount * 5.0;
-    this.camera.fov += (targetFov - this.camera.fov) * 0.15;
+    // NITRO SPEED WARP: FOV surge +20°, Z-pullback, and engine vibration
+    const nitroFov = this.turboAmount * 20.0;
+    const targetFov = 65 + audioBeatPulse * 1.8 + this.fovKick + nitroFov;
+    this.camera.fov += (targetFov - this.camera.fov) * 0.25;
     this.camera.updateProjectionMatrix();
 
-    const zSurge = this.baseCameraPos.z - audioBeatPulse * 0.15;
+    const nitroZ = this.turboAmount * 0.85;
+    const zSurge = this.baseCameraPos.z - audioBeatPulse * 0.15 + nitroZ;
     this.camera.position.z = zSurge;
 
-    if (this.shakeIntensity > 0) {
+    // Nitro Engine Shake
+    const effectiveShake = this.shakeIntensity + (turboActive ? 0.18 : 0);
+    if (effectiveShake > 0) {
       this.shakeOffset.set(
-        (Math.random() - 0.5) * this.shakeIntensity,
-        (Math.random() - 0.5) * this.shakeIntensity,
+        (Math.random() - 0.5) * effectiveShake,
+        (Math.random() - 0.5) * effectiveShake,
         0
       );
-      this.shakeIntensity = Math.max(0, this.shakeIntensity - deltaTime * this.shakeDecay);
+      if (this.shakeIntensity > 0) {
+        this.shakeIntensity = Math.max(0, this.shakeIntensity - deltaTime * this.shakeDecay);
+      }
     } else {
       this.shakeOffset.set(0, 0, 0);
     }
 
     this.camera.position.x = this.baseCameraPos.x + this.shakeOffset.x;
     this.camera.position.y = this.baseCameraPos.y + this.shakeOffset.y;
+
+    // 3D Nitro Speed Lines Animation
+    if (this.speedLinesMat) {
+      const targetOpacity = turboActive ? 0.90 : 0.0;
+      this.speedLinesMat.opacity += (targetOpacity - this.speedLinesMat.opacity) * Math.min(1, deltaTime * 16.0);
+      if (this.speedLinesMat.opacity > 0.01) {
+        this.speedLinesGroup.rotation.z += deltaTime * (turboActive ? 6.0 : 1.0);
+        const lineScale = 1.0 + (turboActive ? Math.random() * 0.35 : 0);
+        this.speedLinesGroup.scale.set(lineScale, lineScale, lineScale);
+      }
+    }
 
     // Flash de fondo con decaimiento exponencial
     if (this._flashIntensity > 0.001) {
