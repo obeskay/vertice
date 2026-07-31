@@ -257,18 +257,6 @@ export class AudioEngine {
     osc.start(time);
     osc.stop(time + 0.07);
   }
-    filter.frequency.exponentialRampToValueAtTime(100, time + 0.12);
-
-    gain.gain.setValueAtTime(0.4, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
-
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(this.masterGain);
-
-    osc.start(time);
-    osc.stop(time + 0.12);
-  }
 
   playNearMiss() {
     this.playNearMissSound();
