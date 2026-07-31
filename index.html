@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>VÉRTICE — Neobrutalist Precision Arcade</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  
+  <!-- Local Vendor Import Map for Three.js (Offline Capable) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <!-- Canvas container for Three.js WebGL -->
+  <div id="canvas-container"></div>
+
+  <!-- Neobrutalist Minimalist HUD -->
+  <div id="hud">
+    <!-- Top Minimal Dock -->
+    <header class="hud-dock">
+      <div class="dock-left">
+        <div class="dock-pill rank-pill">
+          <span id="rank-display">PUNTO</span>
+        </div>
+        <div class="dock-pill best-pill">
+          <span class="pill-label">RÉCORD</span>
+          <span id="best-display">00:00.0</span>
+        </div>
+      </div>
+
+      <div class="dock-right">
+        <div class="dock-pill sync-pill hidden" id="sync-pill">
+          <span id="bpm-display">♪ ---</span>
+        </div>
+        <div class="dock-pill near-miss-pill hidden" id="near-miss-indicator"><span id="near-miss-text">ROZE!</span></div>
+        <div class="dock-pill">
+          <span class="pill-label">TIME</span>
+          <span id="timer-display">00:00.0</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Center Level / Rank Up Notification -->
+    <div id="center-message" class="hidden">
+      <h1 id="message-subtitle">HEXÁGONO</h1>
+    </div>
+
+    <!-- Minimalist Start & Game Over Overlay -->
+    <div id="start-overlay" class="overlay">
+      <div class="neo-card">
+        <div class="brand-tag">NEOBRUTALIST ARCADE</div>
+        <h1 class="logo-title">VÉRTICE<span class="dot">.</span></h1>
+        
+        <div id="game-stats-summary" class="stats-summary hidden">
+          <div class="stat-box">
+            <span class="stat-label">TIEMPO</span>
+            <span id="final-time" class="stat-value">00:00.0</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">ROZES</span>
+            <span id="final-near-misses" class="stat-value">0</span>
+          </div>
+        </div>
+
+        <button id="btn-start" class="btn-neo">
+          JUGAR
+        </button>
+
+        <div class="controls-pill">
+          <kbd class="key">←</kbd> <kbd class="key">→</kbd>
+          <span class="or-separator">o mouse</span>
+          <kbd class="key">SHIFT</kbd> <span class="or-separator">turbo</span>
+        </div>
+
+        <div class="settings-row">
+          <button id="btn-audio-toggle" class="btn-neo-sub">AUDIO: ON</button>
+          <button id="btn-palette-toggle" class="btn-neo-sub">PALETA</button>
+          <button id="btn-sync-toggle" class="btn-neo-sub">SYNC ♪</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Intuitive Touch Overlay -->
+    <div id="touch-controls">
+      <div id="touch-left" class="touch-zone">
+        <span class="arrow-icon">←</span>
+      </div>
+      <div id="touch-right" class="touch-zone">
+        <span class="arrow-icon">→</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
