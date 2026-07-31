@@ -26,7 +26,7 @@ export class WallManager {
     this.spawnInterval = 1.6;
     this.wallThickness = 0.55; // muros robustos: legibles a lo lejos (legibilidad > realismo)
     this.centerRadius = 1.0;
-    this.spawnRadius = 16.0;
+    this.spawnRadius = 7.2; // Radio de spawn optimizado al frustum de la cámara (visibilidad inmediata)
     this.nearMissMargin = 0.16;
     this.ghostTime = 0;
 
@@ -47,7 +47,7 @@ export class WallManager {
     this.onRingSpawned = null; // hook: (ring) => void
   }
 
-  reset() {
+  reset(sides = 6) {
     while (this.wallsGroup.children.length > 0) {
       this.wallsGroup.remove(this.wallsGroup.children[0]);
     }
@@ -56,6 +56,7 @@ export class WallManager {
     this.patternStep = 0;
     this.ghostTime = 0;
     this._mercyFirstRing = true; // el primer anillo siempre tiene gap donde estás
+    this.spawnRingPattern(sides); // Muros visibles de inmediato al iniciar
   }
 
   setColor(colorHex) {

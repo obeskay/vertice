@@ -7,7 +7,7 @@
  */
 export class LevelSystem {
   constructor() {
-    this.sides = 2; // PUNTO arranca con 2 (sincronizado con ranks[0])
+    this.sides = 6; // Hexágono base para rotación orbital completa de 360°
     this.speed = 4.5;
     this.rotationSpeed = 0.5;
     this.rotationDirection = 1;
@@ -17,16 +17,15 @@ export class LevelSystem {
     this.flipTimer = 0;
     this.flipInterval = 4.0;
 
-    // Los lados del nivel = los carriles del jugador = la identidad del rank.
-    // LÍNEA son 2 posiciones, TRIÁNGULO 3... la dificultad ES la geometría.
+    // Lados del nivel (mínimo 6 para permitir rotación circular completa de 360°)
     this.ranks = [
-      { time: 0,   name: 'PUNTO',     sides: 2, speed: 4.2, rotSpeed: 0.3 },
-      { time: 12,  name: 'LÍNEA',     sides: 2, speed: 4.7, rotSpeed: 0.45 },
-      { time: 25,  name: 'TRIÁNGULO', sides: 3, speed: 5.2, rotSpeed: 0.6 },
-      { time: 40,  name: 'CUADRADO',  sides: 4, speed: 5.9, rotSpeed: 0.75 },
-      { time: 55,  name: 'PENTÁGONO', sides: 5, speed: 6.6, rotSpeed: 0.9 },
-      { time: 75,  name: 'HEXÁGONO',  sides: 6, speed: 7.5, rotSpeed: 1.05 },
-      { time: 100, name: 'VÉRTICE',   sides: 8, speed: 8.8, rotSpeed: 1.25 }
+      { time: 0,   name: 'PUNTO',     sides: 6, speed: 4.2, rotSpeed: 0.35 },
+      { time: 12,  name: 'LÍNEA',     sides: 6, speed: 4.8, rotSpeed: 0.50 },
+      { time: 25,  name: 'TRIÁNGULO', sides: 6, speed: 5.5, rotSpeed: 0.65 },
+      { time: 40,  name: 'CUADRADO',  sides: 7, speed: 6.2, rotSpeed: 0.80 },
+      { time: 55,  name: 'PENTÁGONO', sides: 8, speed: 7.0, rotSpeed: 0.95 },
+      { time: 75,  name: 'HEXÁGONO',  sides: 10, speed: 8.0, rotSpeed: 1.10 },
+      { time: 100, name: 'VÉRTICE',   sides: 12, speed: 9.2, rotSpeed: 1.30 }
     ];
 
     this.currentRankIndex = 0;

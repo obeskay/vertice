@@ -210,7 +210,7 @@ class Game {
     this.lastMouseMove = 0; // el click en JUGAR no debe arrastrar la nave
     this.mouseActive = false;
     this._mouseAnchor = null;
-    this.walls.reset();
+    this.walls.reset(this.level.sides);
     this.powerups.reset();
     this.fxClearTrail();
     this.shield = false;
