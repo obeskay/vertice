@@ -125,8 +125,8 @@ class Game {
     window.addEventListener('keydown', (e) => {
       if (['ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
 
-      if (e.code === 'ArrowLeft' || e.code === 'KeyA') { this.keys.left = true; this.lastMouseMove = 0; }
-      if (e.code === 'ArrowRight' || e.code === 'KeyD') { this.keys.right = true; this.lastMouseMove = 0; }
+      if (e.code === 'ArrowLeft' || e.code === 'KeyA') { this.keys.left = true; this._disengageMouse(); }
+      if (e.code === 'ArrowRight' || e.code === 'KeyD') { this.keys.right = true; this._disengageMouse(); }
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' ||
           e.code === 'ArrowUp' || e.code === 'KeyW') this.keys.turbo = true;
 
@@ -152,17 +152,40 @@ class Game {
   }
 
   /** Pointer steer: el mouse apunta, la nave obedece.
-   * CLAVE: el ángulo se captura en coordenadas de MUNDO en el momento del
-   * movimiento (restando la rotación actual). Así queda fijo para siempre:
-   * si no mueves el mouse, la nave no se arrastra con el mundo girando. */
+   * CLAVE 1: el ángulo se captura en coordenadas de MUNDO en el momento del
+   *   movimiento. Si no mueves el mouse, la nave no se arrastra con el mundo.
+   * CLAVE 2: el modo mouse SOLO se activa con movimiento real (≥7px desde el
+   *   último evento). El jitter del trackpad / palma apoyada jamás engancha.
+   * CLAVE 3: cualquier tecla de carril desengancha el mouse por completo. */
   setupPointerSteer() {
+    this.mouseActive = false;
+    this.lastMouseMove = 0;
+    this._mouseAnchor = null;
     window.addEventListener('pointermove', (e) => {
       if (e.pointerType !== 'mouse') return;
+      const x = e.clientX, y = e.clientY;
+      const now = performance.now();
+      if (!this._mouseAnchor) {
+        // Sin referencia previa: este evento ES la referencia, no un movimiento
+        this._mouseAnchor = { x, y };
+        this._lastMoveEventAt = now;
+        return;
+      }
+      // Acumulador de intención: solo cuentan movimientos de ≥5px y decae
+      // 50px/s. La palma en el trackpad (1-4px) NUNCA engancha; un swipe real
+      // (≥10px por evento) engancha en 1-2 eventos.
+      const dist = Math.hypot(x - this._mouseAnchor.x, y - this._mouseAnchor.y);
+      const elapsed = now - (this._lastMoveEventAt || now);
+      this._lastMoveEventAt = now;
+      const contrib = dist >= 5 ? dist : 0;
+      this._jitterAccum = Math.max(0, (this._jitterAccum || 0) + contrib - elapsed * 0.05);
+      this._mouseAnchor = { x, y };
+      if (this._jitterAccum < 10) return;
       this.mouseActive = true;
       this.lastMouseMove = performance.now();
       const cx = window.innerWidth / 2;
       const cy = window.innerHeight / 2;
-      const screenAngle = Math.atan2(-(e.clientY - cy), e.clientX - cx);
+      const screenAngle = Math.atan2(-(y - cy), x - cx);
       this.mouseWorldAngle = screenAngle - this.worldRotation; // fijo en el mundo
     });
   }
@@ -184,6 +207,8 @@ class Game {
     this.player.setLanes(this.level.sides);
     this._lastSides = this.level.sides;
     this.lastMouseMove = 0; // el click en JUGAR no debe arrastrar la nave
+    this.mouseActive = false;
+    this._mouseAnchor = null;
     this.walls.reset();
     this.powerups.reset();
     this.fxClearTrail();
@@ -307,6 +332,14 @@ class Game {
       this.calmaTimer = 3.0;
       this.hud.showRankNotification('CALMA');
     }
+  }
+
+  /** El teclado manda: el mouse queda desenganchado hasta un movimiento real */
+  _disengageMouse() {
+    this.mouseActive = false;
+    this.lastMouseMove = 0;
+    this._mouseAnchor = null;
+    this._jitterAccum = 0;
   }
 
   /** Un paso de simulación a timestep fijo */

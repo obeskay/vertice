@@ -55,6 +55,7 @@ export class WallManager {
     this.spawnTimer = 0;
     this.patternStep = 0;
     this.ghostTime = 0;
+    this._mercyFirstRing = true; // el primer anillo siempre tiene gap donde estás
   }
 
   setColor(colorHex) {
@@ -96,6 +97,7 @@ export class WallManager {
    * Devuelve { collision: bool, nearMiss: null | {x, y} }
    */
   update(deltaTime, speed, sides, playerHitbox, suppressSpawn = false) {
+    this._lastHitbox = playerHitbox || this._lastHitbox;
     this.spawnInterval = Math.max(0.55, 7.5 / speed);
 
     if (!suppressSpawn) {
@@ -180,7 +182,21 @@ export class WallManager {
   }
 
   spawnRingPattern(sides) {
-    if (this.patternStep >= this.patternLength) {
+    if (this._mercyFirstRing) {
+      // PRIMER ANILLO: gap exactamente en el sector del jugador.
+      // Enseña el pass-through gratis; nadie muere sin haber jugado.
+      this._mercyFirstRing = false;
+      this.currentPattern = 'SINGLE_GAP';
+      this.patternLength = 3 + Math.floor(Math.random() * 3);
+      this.patternStep = 0;
+      if (this._lastHitbox) {
+        const TAU = Math.PI * 2;
+        const a = ((this._lastHitbox.angle % TAU) + TAU) % TAU;
+        this.patternGapIndex = Math.floor(a / (TAU / sides)) % sides;
+      }
+      this.spiralDirection = Math.random() < 0.5 ? 1 : -1;
+      this._stairsDir = this.spiralDirection;
+    } else if (this.patternStep >= this.patternLength) {
       // Con pocos lados, solo patrones legibles de 1 gap
       let patterns;
       if (sides <= 3) patterns = Math.random() < 0.65 ? ['SINGLE_GAP'] : ['SINGLE_GAP', 'SPIRAL'];
