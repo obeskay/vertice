@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ShaderPass } from './ShaderPass.js?v=1.0.10';
+import { ShaderPass } from './ShaderPass.js?v=1.0.11';
 
 /**
  * Renderer
@@ -145,44 +145,30 @@ export class Renderer {
         shape.closePath();
       }
 
-      // Sólido extruido con profundidad (look 3D del original)
-      const geometry = new THREE.ExtrudeGeometry(shape, {
-        depth: 0.22,
-        bevelEnabled: false
-      });
-      geometry.center();
+      // 100% Plano y Concéntrico (sin sombras ni extrusiones 3D desfasadas)
+      const geometry = new THREE.ShapeGeometry(shape);
 
       this.centerMat = new THREE.MeshBasicMaterial({
         color: typeof colorHex === 'number' ? colorHex : 0x0a0b10,
         side: THREE.DoubleSide
       });
       this.centerMesh = new THREE.Mesh(geometry, this.centerMat);
+      this.centerMesh.position.z = 0.05;
       this.centerGroup.add(this.centerMesh);
 
-      // Contorno de acento (anillo de líneas del polígono)
+      // Contorno de acento de alta precisión
       const outlinePts = [];
-      const innerOutlinePts = [];
-      const innerRadius = radius * 0.55;
-
       for (let i = 0; i <= sides; i++) {
         const a = (i % sides) * sectorAngle;
-        outlinePts.push(new THREE.Vector3(Math.cos(a) * radius, Math.sin(a) * radius, 0.13));
-        innerOutlinePts.push(new THREE.Vector3(Math.cos(a) * innerRadius, Math.sin(a) * innerRadius, 0.14));
+        outlinePts.push(new THREE.Vector3(Math.cos(a) * radius, Math.sin(a) * radius, 0.06));
       }
 
-      this.centerOutlineMat = new THREE.LineBasicMaterial({ color: 0x00ff66 });
+      this.centerOutlineMat = new THREE.LineBasicMaterial({ color: 0x00ff66, linewidth: 2 });
       this.centerEdges = new THREE.Line(
         new THREE.BufferGeometry().setFromPoints(outlinePts),
         this.centerOutlineMat
       );
       this.centerGroup.add(this.centerEdges);
-
-      // Emblema concéntrico interno
-      this.centerInnerEdges = new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints(innerOutlinePts),
-        this.centerOutlineMat
-      );
-      this.centerGroup.add(this.centerInnerEdges);
     } else {
       if (this.centerMat && typeof colorHex === 'number') {
         this.centerMat.color.setHex(colorHex);

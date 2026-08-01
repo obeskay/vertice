@@ -1,14 +1,14 @@
-import { Renderer } from './engine/Renderer.js?v=1.0.10';
-import { AudioEngine } from './engine/AudioEngine.js?v=1.0.10';
-import { MusicSync } from './engine/MusicSync.js?v=1.0.10';
-import { ParticleSystem } from './engine/ParticleSystem.js?v=1.0.10';
-import { PaletteManager } from './engine/PaletteManager.js?v=1.0.10';
-import { Player } from './game/Player.js?v=1.0.10';
-import { WallManager } from './game/WallManager.js?v=1.0.10';
-import { PowerUpManager } from './game/PowerUpManager.js?v=1.0.10';
-import { LevelSystem } from './game/LevelSystem.js?v=1.0.10';
-import { ScoreSystem } from './game/ScoreSystem.js?v=1.0.10';
-import { HUDManager } from './ui/HUDManager.js?v=1.0.10';
+import { Renderer } from './engine/Renderer.js?v=1.0.11';
+import { AudioEngine } from './engine/AudioEngine.js?v=1.0.11';
+import { MusicSync } from './engine/MusicSync.js?v=1.0.11';
+import { ParticleSystem } from './engine/ParticleSystem.js?v=1.0.11';
+import { PaletteManager } from './engine/PaletteManager.js?v=1.0.11';
+import { Player } from './game/Player.js?v=1.0.11';
+import { WallManager } from './game/WallManager.js?v=1.0.11';
+import { PowerUpManager } from './game/PowerUpManager.js?v=1.0.11';
+import { LevelSystem } from './game/LevelSystem.js?v=1.0.11';
+import { ScoreSystem } from './game/ScoreSystem.js?v=1.0.11';
+import { HUDManager } from './ui/HUDManager.js?v=1.0.11';
 
 /**
  * VÉRTICE — game loop de precisión:

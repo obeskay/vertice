@@ -204,8 +204,8 @@ export class WallManager {
       // Con pocos lados, solo patrones legibles de 1 gap
       let patterns;
       if (sides <= 3) patterns = Math.random() < 0.65 ? ['SINGLE_GAP', 'TUNNEL'] : ['SINGLE_GAP', 'SPIRAL', 'TUNNEL'];
-      else if (sides === 4) patterns = ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'STAGGER', 'ZIG_ZAG', 'TUNNEL'];
-      else patterns = ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'STAGGER', 'VORTEX', 'STAIRS', 'ZIG_ZAG', 'SLALOM', 'TUNNEL'];
+      else if (sides === 4) patterns = ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'STAGGER', 'ZIG_ZAG', 'TUNNEL', 'CANNON'];
+      else patterns = ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'TRIPLE_GAP', 'STAGGER', 'VORTEX', 'STAIRS', 'ZIG_ZAG', 'SLALOM', 'TUNNEL', 'CANNON', 'CHEVRON'];
       let next = patterns[Math.floor(Math.random() * patterns.length)];
       if (next === this.currentPattern) {
         next = patterns[(patterns.indexOf(next) + 1) % patterns.length];
@@ -227,6 +227,7 @@ export class WallManager {
         break;
 
       case 'SPIRAL':
+      case 'CANNON':
         this.patternGapIndex = (this.patternGapIndex + this.spiralDirection + sides) % sides;
         blockedSectors[this.patternGapIndex] = false;
         break;
@@ -235,6 +236,22 @@ export class WallManager {
         blockedSectors[this.patternGapIndex] = false;
         const opp = (this.patternGapIndex + Math.floor(sides / 2)) % sides;
         blockedSectors[opp] = false;
+        break;
+      }
+
+      case 'TRIPLE_GAP': {
+        const step = Math.floor(sides / 3);
+        blockedSectors[this.patternGapIndex] = false;
+        blockedSectors[(this.patternGapIndex + step) % sides] = false;
+        blockedSectors[(this.patternGapIndex + step * 2) % sides] = false;
+        break;
+      }
+
+      case 'CHEVRON': {
+        const offset = (this.patternStep % 2 === 0) ? 0 : Math.floor(sides / 2);
+        const idx = (this.patternGapIndex + offset) % sides;
+        blockedSectors[idx] = false;
+        blockedSectors[(idx + 1) % sides] = false;
         break;
       }
 
