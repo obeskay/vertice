@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ShaderPass } from './ShaderPass.js?v=1.0.7';
+import { ShaderPass } from './ShaderPass.js?v=1.0.9';
 
 /**
  * Renderer
@@ -261,18 +261,13 @@ export class Renderer {
 
     this.scene.rotation.z = worldRotation;
 
-    // Pulso rítmico y dinámico de la figura central al ritmo del bombo
-    const centerPulse = 1 + audioBeatPulse * 0.075;
+    // 100% Geometric Symmetry: la figura central y los gajos de fondo
+    // giran sincronizados 1:1 con el mundo (los vértices coinciden perfectamente).
+    const centerPulse = 1 + audioBeatPulse * 0.045;
     this.centerGroup.scale.set(centerPulse, centerPulse, 1);
-    if (this.centerInnerEdges) {
-      this.centerInnerEdges.rotation.z = worldRotation * 0.45;
-    }
 
-    // Parallax de gajos: contra-rotan 0.38x → giran a 0.62x del mundo.
-    // La ilusión: el túnel respira detrás de los muros (hipnótico, no estrobo).
-    this.wedgeGroup.rotation.z = -worldRotation * 0.38;
-    const wedgePulse = 1 + audioBeatPulse * 0.012;
-    this.wedgeGroup.scale.set(wedgePulse, wedgePulse, 1);
+    this.wedgeGroup.rotation.z = 0;
+    this.wedgeGroup.scale.set(1, 1, 1);
 
     // 3D Scene Direct Render (Crisp 60fps+ Neobrutalist visual output)
     this.renderer.render(this.scene, this.camera);
