@@ -42,7 +42,10 @@ export class WallManager {
       color: 0x00ff66,
       side: THREE.DoubleSide
     });
-    this.edgesMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
+    this.edgesMaterial = new THREE.LineBasicMaterial({
+      color: 0x06070a,
+      linewidth: 2
+    });
 
     this.onRingSpawned = null; // hook: (ring) => void
   }

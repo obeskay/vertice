@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ShaderPass } from './ShaderPass.js?v=1.0.9';
+import { ShaderPass } from './ShaderPass.js?v=1.0.10';
 
 /**
  * Renderer
