@@ -55,23 +55,6 @@ export class Player {
     this.shipEdges.scale.set(1.1, 1.1, 1.1);
     this.meshGroup.add(this.shipEdges);
 
-    // Nitro Plasma Thruster Cone (NFS / Arcade Nitro Boost)
-    const nitroShape = new THREE.Shape();
-    nitroShape.moveTo(0, -0.10);
-    nitroShape.lineTo(-0.08, -0.45);
-    nitroShape.lineTo(0, -0.75);
-    nitroShape.lineTo(0.08, -0.45);
-    nitroShape.closePath();
-
-    this.nitroMat = new THREE.MeshBasicMaterial({
-      color: 0x00ffff,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0
-    });
-    this.nitroMesh = new THREE.Mesh(new THREE.ShapeGeometry(nitroShape), this.nitroMat);
-    this.meshGroup.add(this.nitroMesh);
-
     // Escudo HEXAGONAL
     const shieldPts = [];
     for (let i = 0; i <= 6; i++) {
@@ -179,19 +162,11 @@ export class Player {
     this.shipMesh.rotation.z = this.tilt;
     this.shipEdges.rotation.z = this.tilt;
 
-    const stretch = this.turboActive ? 1.65 : 1;
+    const stretch = this.turboActive ? 1.45 : 1;
     const cur = this.shipMesh.scale.x;
     const next = cur + (stretch - cur) * Math.min(1, dt * 12);
     this.shipMesh.scale.set(next, 1, 1);
     this.shipEdges.scale.set(1.1 * next, 1.1, 1.1);
-
-    if (this.turboActive) {
-      this.nitroMat.opacity = 0.95;
-      const flickerLength = 1.8 + Math.random() * 0.95;
-      this.nitroMesh.scale.set(1.2 + Math.random() * 0.3, flickerLength, 1);
-    } else {
-      this.nitroMat.opacity = 0;
-    }
 
     if (this.shieldMesh.visible) {
       this.shieldMesh.rotation.z += dt * 2.5;

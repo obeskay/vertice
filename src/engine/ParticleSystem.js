@@ -69,32 +69,11 @@ export class ParticleSystem {
     this.explosionMesh = new THREE.Points(this.explosionGeo, this.explosionMat);
     this.scene.add(this.explosionMesh);
 
-    // 4. Ambient Warp Speed Dust (Radially drifting motes)
-    this.dustCount = 140;
+    // 4. Ambient Dust (Disabled for 100% clean visual clarity)
+    this.dustCount = 0;
     this.dustGeo = new THREE.BufferGeometry();
-    this.dustPos = new Float32Array(this.dustCount * 3);
-    this.dustAngle = new Float32Array(this.dustCount);
-    this.dustRadius = new Float32Array(this.dustCount);
-    this.dustSpeed = new Float32Array(this.dustCount);
-
-    for (let i = 0; i < this.dustCount; i++) {
-      this.dustAngle[i] = Math.random() * Math.PI * 2;
-      this.dustRadius[i] = 1.0 + Math.random() * 17.0;
-      this.dustSpeed[i] = 2.5 + Math.random() * 8.0;
-
-      this.dustPos[i * 3] = Math.cos(this.dustAngle[i]) * this.dustRadius[i];
-      this.dustPos[i * 3 + 1] = Math.sin(this.dustAngle[i]) * this.dustRadius[i];
-      this.dustPos[i * 3 + 2] = (Math.random() - 0.5) * 1.5;
-    }
-    this.dustGeo.setAttribute('position', new THREE.BufferAttribute(this.dustPos, 3));
-    this.dustMat = new THREE.PointsMaterial({
-      color: 0x00ff66,
-      size: 0.09,
-      transparent: true,
-      opacity: 0.45
-    });
+    this.dustMat = new THREE.PointsMaterial({ opacity: 0, visible: false });
     this.dustMesh = new THREE.Points(this.dustGeo, this.dustMat);
-    this.scene.add(this.dustMesh);
   }
 
   clearTrail() {
@@ -188,30 +167,15 @@ export class ParticleSystem {
         }
       }
       this.explosionMat.opacity = Math.max(0, this.explosionMat.opacity - deltaTime * 1.5);
-      this.explosionGeo.attributes.position.needsUpdate = true;
+    this.explosionGeo.attributes.position.needsUpdate = true;
     }
-
-    // Update Ambient Warp Speed Dust
-    const moveMult = Math.max(0.5, speedMultiplier);
-    for (let i = 0; i < this.dustCount; i++) {
-      this.dustRadius[i] += this.dustSpeed[i] * moveMult * deltaTime;
-      if (this.dustRadius[i] > 18.0) {
-        this.dustRadius[i] = 1.05;
-        this.dustAngle[i] = Math.random() * Math.PI * 2;
-      }
-      this.dustPos[i * 3] = Math.cos(this.dustAngle[i]) * this.dustRadius[i];
-      this.dustPos[i * 3 + 1] = Math.sin(this.dustAngle[i]) * this.dustRadius[i];
-    }
-    this.dustGeo.attributes.position.needsUpdate = true;
   }
 
   setThemeColors(colorHex) {
     if (typeof colorHex === 'number') {
       this.trailMat.color.setHex(colorHex);
-      this.dustMat.color.setHex(colorHex);
     } else if (colorHex && colorHex.getHex) {
       this.trailMat.color.copy(colorHex);
-      this.dustMat.color.copy(colorHex);
     }
   }
 }
