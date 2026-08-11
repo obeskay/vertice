@@ -25,7 +25,10 @@ export class HUDManager {
     this.gameoverOverlay = document.getElementById('gameover-overlay') || document.getElementById('start-overlay');
     this.pauseOverlay = document.getElementById('pause-overlay');
 
-    // Action Buttons
+    // Action Buttons & Badges
+    this.turboPill = document.getElementById('turbo-pill');
+    this.comboPill = document.getElementById('combo-pill');
+    this.comboDisplay = document.getElementById('combo-display');
     this.btnStart = document.getElementById('btn-start');
     this.btnRetry = document.getElementById('btn-retry') || document.getElementById('btn-start');
     this.btnResume = document.getElementById('btn-resume');
@@ -177,6 +180,23 @@ export class HUDManager {
   updateBestScore(formattedBest) {
     if (this.bestDisplay) {
       this.bestDisplay.innerText = `BEST ${formattedBest}`;
+    }
+  }
+
+  updateTurbo(active) {
+    if (this.turboPill) {
+      this.turboPill.classList.toggle('hidden', !active);
+    }
+  }
+
+  updateCombo(chain) {
+    if (this.comboPill) {
+      if (chain >= 2) {
+        if (this.comboDisplay) this.comboDisplay.innerText = `FLOW ${chain}x 🔥`;
+        this.comboPill.classList.remove('hidden');
+      } else {
+        this.comboPill.classList.add('hidden');
+      }
     }
   }
 

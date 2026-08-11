@@ -134,8 +134,26 @@ body.playing .pill-label {
   transition: background 0.35s ease;
 }
 
+.turbo-pill {
+  background: #ffcc00;
+  color: #000000;
+  animation: pulse-turbo 0.4s infinite alternate ease-in-out;
+}
+
+@keyframes pulse-turbo {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.06); }
+}
+
+.combo-pill {
+  background: #ff0055;
+  color: #ffffff;
+  border-color: #000000;
+  transition: background 0.35s ease, transform 0.15s ease;
+}
+
 .dock-pill.hidden {
-  display: none;
+  display: none !important;
 }
 
 /* ─── Mensaje central (rank / power-up / récord) ─── */

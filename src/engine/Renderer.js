@@ -255,8 +255,12 @@ export class Renderer {
     this.wedgeGroup.rotation.z = 0;
     this.wedgeGroup.scale.set(1, 1, 1);
 
-    // 3D Scene Direct Render (Crisp 60fps+ Neobrutalist visual output)
-    this.renderer.render(this.scene, this.camera);
+    // 3D Scene + Cartoon Neobrutalism ShaderPass (Turbo Motion Warp, Chromatic Aberration & Film Grain)
+    if (this.shaderPass) {
+      this.shaderPass.render(this.scene, this.camera, this.totalTime, this.turboAmount, audioBeatPulse);
+    } else {
+      this.renderer.render(this.scene, this.camera);
+    }
   }
 
   setBackgroundColor(colorHex) {

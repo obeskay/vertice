@@ -55,6 +55,21 @@ export class Player {
     this.shipEdges.scale.set(1.1, 1.1, 1.1);
     this.meshGroup.add(this.shipEdges);
 
+    // Thruster Flare (Turbo Speed Jet Visual)
+    const thrusterShape = new THREE.Shape();
+    thrusterShape.moveTo(0, -0.10);
+    thrusterShape.lineTo(-0.07, -0.24);
+    thrusterShape.lineTo(0.07, -0.24);
+    thrusterShape.closePath();
+    this.thrusterMat = new THREE.MeshBasicMaterial({
+      color: 0x00ff66,
+      side: THREE.DoubleSide,
+      transparent: true,
+      opacity: 0
+    });
+    this.thrusterMesh = new THREE.Mesh(new THREE.ShapeGeometry(thrusterShape), this.thrusterMat);
+    this.meshGroup.add(this.thrusterMesh);
+
     // Escudo HEXAGONAL
     const shieldPts = [];
     for (let i = 0; i <= 6; i++) {
@@ -168,6 +183,13 @@ export class Player {
     this.shipMesh.scale.set(next, 1, 1);
     this.shipEdges.scale.set(1.1 * next, 1.1, 1.1);
 
+    if (this.turboActive) {
+      this.thrusterMat.opacity = 0.85 + Math.random() * 0.15;
+      this.thrusterMesh.scale.set(1 + Math.random() * 0.35, 1 + Math.random() * 0.5, 1);
+    } else {
+      this.thrusterMat.opacity = Math.max(0, this.thrusterMat.opacity - dt * 12);
+    }
+
     if (this.shieldMesh.visible) {
       this.shieldMesh.rotation.z += dt * 2.5;
     }
@@ -186,8 +208,13 @@ export class Player {
   }
 
   setColor(colorHex) {
-    if (typeof colorHex === 'number') this.material.color.setHex(colorHex);
-    else if (colorHex && colorHex.getHex) this.material.color.copy(colorHex);
+    if (typeof colorHex === 'number') {
+      this.material.color.setHex(colorHex);
+      if (this.thrusterMat) this.thrusterMat.color.setHex(colorHex);
+    } else if (colorHex && colorHex.getHex) {
+      this.material.color.copy(colorHex);
+      if (this.thrusterMat) this.thrusterMat.color.copy(colorHex);
+    }
   }
 
   setShieldColor(colorHex) {

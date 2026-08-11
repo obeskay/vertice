@@ -564,6 +564,8 @@ class Game {
 
     const isTurboActive = (this.keys.turbo || this.touchTurbo) && this.state === 'PLAYING';
     this.audio.setTurboActive(isTurboActive);
+    this.hud.updateTurbo(isTurboActive);
+    this.hud.updateCombo(this.state === 'PLAYING' ? this.flowChain : 0);
     const renderRotation = this.prevWorldRotation + (this.worldRotation - this.prevWorldRotation) * alpha;
     this.renderer.render(beatPulse, rawDt, renderRotation, isTurboActive);
 
