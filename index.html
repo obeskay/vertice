@@ -22,9 +22,9 @@
   <!-- Canvas container for Three.js WebGL -->
   <div id="canvas-container"></div>
 
-  <!-- Neobrutalist Minimalist HUD -->
+  <!-- Neobrutalist Clean Arcade HUD -->
   <div id="hud">
-    <!-- Top Minimal Dock -->
+    <!-- Top Sleek Dock: Rank & Time -->
     <header class="hud-dock">
       <div class="dock-left">
         <div class="dock-pill rank-pill">
@@ -34,23 +34,13 @@
           <span class="pill-label">RÉCORD</span>
           <span id="best-display">00:00.0</span>
         </div>
-        <div class="dock-pill combo-pill hidden" id="combo-pill">
-          <span id="combo-display">FLOW 2x 🔥</span>
-        </div>
       </div>
 
       <div class="dock-right">
-        <div class="dock-pill turbo-pill hidden" id="turbo-pill">
-          <span id="turbo-display">TURBO ⚡</span>
-        </div>
-        <div class="dock-pill sync-pill hidden" id="sync-pill">
-          <span id="bpm-display">♪ ---</span>
-        </div>
         <div class="dock-pill near-miss-pill hidden" id="near-miss-indicator">
           <span id="near-miss-text">ROZE!</span>
         </div>
         <div class="dock-pill time-pill">
-          <span class="pill-label">TIEMPO</span>
           <span id="timer-display">00:00.0</span>
         </div>
       </div>
@@ -101,9 +91,9 @@
         </button>
 
         <div class="controls-pill">
-          <kbd class="key">ESPACIO</kbd> <span class="or-separator">o tap</span>
+          <kbd class="key">ESPACIO</kbd> <span class="or-separator">jugar</span>
           <span class="key-divider">•</span>
-          <kbd class="key">←</kbd><kbd class="key">→</kbd>
+          <kbd class="key">←</kbd><kbd class="key">→</kbd> <span class="or-separator">mover</span>
         </div>
 
         <!-- Settings Buttons -->

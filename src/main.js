@@ -17,7 +17,7 @@ import { HUDManager } from './ui/HUDManager.js';
  * - 240Hz Fixed-Timestep Simulation with Sub-Pixel Interpolated Rendering
  * - Arcade 360° Orbital Control with Dynamic Banking Tilt
  * - Chiptune / Darksynth Procedural Synthesizer with Dynamic Layering
- * - Iconic Robotic Voice Announcer ("BEGIN!", "HEXAGON!", "GAME OVER!")
+ * - YouTube / Spotify External Music Sync with automated internal music muting
  * - 4 Game Modes (Normal, Hiper, Extremo, Zen)
  * - Swept Radial Collision & Guaranteed Fair Patterns
  */
@@ -33,7 +33,6 @@ class Game {
     this.audio = new AudioEngine();
     this.voice = new VoiceEngine(this.audio);
     this.sync = new MusicSync(this.audio);
-    this.beatQueue = 0;
     this.particles = new ParticleSystem(this.renderer.scene);
     this.palette = new PaletteManager();
 
@@ -115,7 +114,6 @@ class Game {
         }
         try {
           await this.sync.start();
-          this.audio.stop();
           return 'ON';
         } catch (err) {
           console.warn('MusicSync error:', err.message || err);
@@ -157,7 +155,7 @@ class Game {
         if (this.state === 'PLAYING') e.preventDefault();
       }
 
-      // If in MENU or GAMEOVER, Left/Right arrow keys cycle difficulty mode!
+      // If in MENU or GAMEOVER, Left/Right arrow keys cycle difficulty mode
       if (this.state === 'MENU' || this.state === 'GAMEOVER') {
         if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
           this.hud.cycleMode(-1);
@@ -257,7 +255,11 @@ class Game {
     this.deathElapsed = 0;
 
     this.audio.setMode(this.level.mode);
-    this.audio.start();
+    if (!this.sync.active) {
+      this.audio.start();
+    } else {
+      this.audio.init();
+    }
     this.voice.announceStart();
 
     this.hud.updateTimer(this.score.getFormattedCurrentTime());
@@ -269,13 +271,13 @@ class Game {
   pause() {
     this.prevState = this.state;
     this.state = 'PAUSED';
-    this.audio.suspend();
+    if (!this.sync.active) this.audio.suspend();
     this.hud.showPause(true);
   }
 
   resume() {
     this.state = this.prevState === 'PAUSED' ? 'PLAYING' : this.prevState;
-    this.audio.resume();
+    if (!this.sync.active) this.audio.resume();
     this.hud.showPause(false);
     this.lastTime = performance.now();
   }
@@ -459,23 +461,12 @@ class Game {
     const pPos = this.player.getRenderPosition();
     this.fxTrail(pPos.x, pPos.y);
 
-    // Wall updates
+    // Wall updates (Continuous, NEVER suppressed)
     const speedMult = this.sync.active ? this.sync.getSpeedMultiplier() : 1;
     const result = this.walls.update(
       dt, levelStatus.speed * speedMult, levelStatus.sides,
-      this.player.getHitbox(), this.sync.active
+      this.player.getHitbox(), false
     );
-
-    if (this.sync.active && this.beatQueue > 0) {
-      this.beatQueue--;
-      this._beatCounter = (this._beatCounter || 0) + 1;
-      const beatsPerSpawn = Math.max(
-        1, Math.round(this.walls.spawnInterval / this.sync.currentInterval)
-      );
-      if (this._beatCounter % beatsPerSpawn === 0) {
-        this.walls.spawnNow(levelStatus.sides);
-      }
-    }
 
     // Power-up updates
     const puResult = this.powerups.update(
@@ -507,7 +498,7 @@ class Game {
     }
 
     if (result.collision) {
-      // In ZEN mode, bounce instead of dying!
+      // In ZEN mode, bounce instead of dying
       if (this.level.mode === 'ZEN') {
         this.walls.ghostTime = 1.2;
         this.walls.crushNearbyWalls(this.player.radius);
@@ -548,7 +539,7 @@ class Game {
       if (this.calmaTimer > 0) {
         this.calmaTimer -= rawDt;
         if (this.calmaTimer <= 0) {
-          this.audio.setFilterCutoff(20000, 0.35); // Restore audio filter
+          this.audio.setFilterCutoff(20000, 0.35);
         }
       }
       const targetTimeScale = this.calmaTimer > 0 ? 0.55 : 1;
@@ -587,12 +578,18 @@ class Game {
       this.worldRotation += rawDt * 0.15;
     }
 
-    this.audio.updateBpm(this.score.currentTime);
-    this.audio.update(rawDt);
-
-    if (this.sync.active) {
-      if (this.sync.update(rawDt)) this.beatQueue++;
-      if (this.sync.bpm > 0) this.hud.updateBpm(Math.round(this.sync.bpm));
+    if (!this.sync.active) {
+      this.audio.updateBpm(this.score.currentTime);
+      this.audio.update(rawDt);
+    } else {
+      const isNewBeat = this.sync.update(rawDt);
+      if (isNewBeat && this.state === 'PLAYING') {
+        // Quantize incoming beat: if wall timer is close to spawning, trigger now
+        if (this.walls.spawnTimer >= this.walls.spawnInterval * 0.70) {
+          this.walls.spawnTimer = 0;
+          this.walls.spawnNow(this.level.sides);
+        }
+      }
     }
 
     const beatPulse = this.sync.active ? this.sync.beatPulse : this.audio.beatPulse;
@@ -615,8 +612,6 @@ class Game {
 
     const isTurboActive = (this.keys.turbo || this.touchTurbo) && this.state === 'PLAYING';
     this.audio.setTurboActive(isTurboActive);
-    this.hud.updateTurbo(isTurboActive);
-    this.hud.updateCombo(this.state === 'PLAYING' ? this.flowChain : 0);
 
     const renderRotation = this.prevWorldRotation + (this.worldRotation - this.prevWorldRotation) * alpha;
     const playerTilt = this.player.tilt || 0;

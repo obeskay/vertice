@@ -19,11 +19,11 @@ export class WallManager {
 
     this.activeRings = [];
     this.spawnTimer = 0;
-    this.spawnInterval = 1.4;
-    this.wallThickness = 0.52;
-    this.centerRadius = 1.0;
+    this.spawnInterval = 1.35;
+    this.wallThickness = 0.50;
+    this.centerRadius = 1.05;
     this.spawnRadius = 7.6;
-    this.nearMissMargin = 0.19;
+    this.nearMissMargin = 0.20;
     this.ghostTime = 0;
 
     this.currentPattern = 'SINGLE_GAP';
@@ -95,7 +95,7 @@ export class WallManager {
    */
   update(deltaTime, speed, sides, playerHitbox, suppressSpawn = false) {
     this._lastHitbox = playerHitbox || this._lastHitbox;
-    this.spawnInterval = Math.max(0.48, 7.8 / speed);
+    this.spawnInterval = Math.max(0.46, 7.6 / speed);
 
     if (!suppressSpawn) {
       this.spawnTimer += deltaTime;
@@ -144,7 +144,7 @@ export class WallManager {
         }
       }
 
-      if (newOuter < 0.52) {
+      if (newOuter < 0.50) {
         this.wallsGroup.remove(ring.group);
         this.activeRings.splice(i, 1);
       }
@@ -203,7 +203,7 @@ export class WallManager {
       }
       this.currentPattern = next;
       this.patternStep = 0;
-      this.patternLength = 4 + Math.floor(Math.random() * 5);
+      this.patternLength = 4 + Math.floor(Math.random() * 4);
       this.patternGapIndex = Math.floor(Math.random() * sides);
       this.spiralDirection = Math.random() < 0.5 ? 1 : -1;
       this._stairsDir = this.spiralDirection;

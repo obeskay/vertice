@@ -28,12 +28,13 @@ export class Renderer {
 
     // WebGL Renderer
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const pr = Math.min(window.devicePixelRatio || 1, 2);
+    this.renderer.setPixelRatio(pr);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.container.appendChild(this.renderer.domElement);
 
-    // Custom Post-Processing Shader Pass
-    this.shaderPass = new ShaderPass(this.renderer, window.innerWidth, window.innerHeight);
+    // Custom Post-Processing Shader Pass (Retina Native Resolution)
+    this.shaderPass = new ShaderPass(this.renderer, window.innerWidth * pr, window.innerHeight * pr);
     this.totalTime = 0;
     this.turboAmount = 0;
     this.cameraBanking = 0;
@@ -56,7 +57,7 @@ export class Renderer {
     // Camera FOV Kick & Screen Shake
     this.fovKick = 0;
     this.shakeIntensity = 0;
-    this.shakeDecay = 5.0;
+    this.shakeDecay = 5.5;
     this.shakeOffset = new THREE.Vector3();
 
     // High-Contrast Flat Ambient Lighting
@@ -83,7 +84,7 @@ export class Renderer {
       const TAU = Math.PI * 2;
       const sector = TAU / sides;
       const R0 = 1.0;
-      const R1 = 65;
+      const R1 = 70;
       for (let i = 0; i < sides; i++) {
         const a0 = i * sector;
         const a1 = (i + 1) * sector;
@@ -151,7 +152,7 @@ export class Renderer {
       this.centerMesh.position.z = 0.05;
       this.centerGroup.add(this.centerMesh);
 
-      // Neon outline
+      // Neon outline with dark ink border
       const outlinePts = [];
       for (let i = 0; i <= sides; i++) {
         const a = (i % sides) * sectorAngle;
@@ -203,8 +204,8 @@ export class Renderer {
     }
 
     // Dynamic Camera FOV & Distance Surge on Beats & Turbo
-    const nitroFov = this.turboAmount * 20.0;
-    const targetFov = 65 + audioBeatPulse * 2.2 + this.fovKick + nitroFov;
+    const nitroFov = this.turboAmount * 18.0;
+    const targetFov = 65 + audioBeatPulse * 2.5 + this.fovKick + nitroFov;
     this.camera.fov += (targetFov - this.camera.fov) * 0.25;
     this.camera.updateProjectionMatrix();
 
@@ -218,7 +219,7 @@ export class Renderer {
     this.camera.rotation.z = this.cameraBanking;
 
     // Camera Shake
-    const effectiveShake = this.shakeIntensity + (turboActive ? 0.18 : 0);
+    const effectiveShake = this.shakeIntensity + (turboActive ? 0.16 : 0);
     if (effectiveShake > 0) {
       this.shakeOffset.set(
         (Math.random() - 0.5) * effectiveShake,
@@ -246,7 +247,7 @@ export class Renderer {
     this.scene.rotation.z = worldRotation;
 
     // Center Polygon Pulse synced with beat
-    const centerPulse = 1 + audioBeatPulse * 0.055;
+    const centerPulse = 1 + audioBeatPulse * 0.06;
     this.centerGroup.scale.set(centerPulse, centerPulse, 1);
 
     this.wedgeGroup.rotation.z = 0;
@@ -269,11 +270,13 @@ export class Renderer {
   }
 
   onWindowResize() {
+    const pr = Math.min(window.devicePixelRatio || 1, 2);
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
+    this.renderer.setPixelRatio(pr);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     if (this.shaderPass) {
-      this.shaderPass.setSize(window.innerWidth, window.innerHeight);
+      this.shaderPass.setSize(window.innerWidth * pr, window.innerHeight * pr);
     }
   }
 }

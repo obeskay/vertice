@@ -2,7 +2,7 @@
  * HUDManager
  * Neobrutalist UI Controller for VÉRTICE.
  * Handles mode selection, leaderboard display, voice/control toggles,
- * stats presentation and touch interactions.
+ * stats presentation and touch interactions with zero visual clutter.
  */
 export class HUDManager {
   constructor(gameCallbacks) {
@@ -26,10 +26,7 @@ export class HUDManager {
     this.pauseOverlay = document.getElementById('pause-overlay');
     this.leaderboardOverlay = document.getElementById('leaderboard-overlay');
 
-    // Action Buttons & Badges
-    this.turboPill = document.getElementById('turbo-pill');
-    this.comboPill = document.getElementById('combo-pill');
-    this.comboDisplay = document.getElementById('combo-display');
+    // Action Buttons
     this.btnStart = document.getElementById('btn-start');
     this.btnResume = document.getElementById('btn-resume');
     this.btnPauseRestart = document.getElementById('btn-pause-restart');
@@ -40,8 +37,6 @@ export class HUDManager {
     this.btnSyncToggle = document.getElementById('btn-sync-toggle');
     this.btnLeaderboardToggle = document.getElementById('btn-leaderboard-toggle');
     this.btnCloseLeaderboard = document.getElementById('btn-close-leaderboard');
-    this.syncPill = document.getElementById('sync-pill');
-    this.bpmDisplay = document.getElementById('bpm-display');
 
     // Mode Selector Buttons
     this.modeButtons = document.querySelectorAll('.btn-mode');
@@ -133,14 +128,12 @@ export class HUDManager {
 
     if (this.btnSyncToggle && this.callbacks.onToggleSync) {
       this.btnSyncToggle.addEventListener('click', async () => {
-        this.btnSyncToggle.innerText = 'ESCUCHANDO…';
+        this.btnSyncToggle.innerText = 'CONECTANDO…';
         const state = await this.callbacks.onToggleSync();
         if (state === 'ON') {
           this.btnSyncToggle.innerText = 'SYNC: ON';
-          if (this.syncPill) this.syncPill.classList.remove('hidden');
         } else {
           this.btnSyncToggle.innerText = state === 'ERROR' ? 'SYNC ✕' : 'SYNC ♪';
-          if (this.syncPill) this.syncPill.classList.add('hidden');
         }
       });
     }
@@ -243,12 +236,6 @@ export class HUDManager {
     if (this.leaderboardOverlay) this.leaderboardOverlay.classList.remove('hidden');
   }
 
-  updateBpm(bpm) {
-    if (this.bpmDisplay) {
-      this.bpmDisplay.innerText = `♪ ${bpm} BPM`;
-    }
-  }
-
   updateTimer(formattedTime) {
     if (this.timerDisplay && formattedTime !== this._lastTimerText) {
       this._lastTimerText = formattedTime;
@@ -265,23 +252,6 @@ export class HUDManager {
   updateBestScore(formattedBest) {
     if (this.bestDisplay) {
       this.bestDisplay.innerText = `BEST ${formattedBest}`;
-    }
-  }
-
-  updateTurbo(active) {
-    if (this.turboPill) {
-      this.turboPill.classList.toggle('hidden', !active);
-    }
-  }
-
-  updateCombo(chain) {
-    if (this.comboPill) {
-      if (chain >= 2) {
-        if (this.comboDisplay) this.comboDisplay.innerText = `FLOW ${chain}x 🔥`;
-        this.comboPill.classList.remove('hidden');
-      } else {
-        this.comboPill.classList.add('hidden');
-      }
     }
   }
 

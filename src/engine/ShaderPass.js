@@ -3,10 +3,10 @@ import * as THREE from 'three';
 /**
  * ShaderPass — 2D Cartoon Neobrutalism & Turbo Motion Warp
  * WebGL post-processing shader for VÉRTICE:
+ * - High-DPI Retina native render target (pixel-perfect sharpness)
  * - Radial speed warp & tunnel distortion when holding SHIFT (uTurbo)
  * - Beat-reactive chromatic aberration & radial vignette
- * - Subtle film grain texture for a tactile arcade screen aesthetic
- * - Razor-sharp edge enhancement
+ * - Subtle film grain texture for tactile arcade monitor feel
  */
 export class ShaderPass {
   constructor(renderer, width, height) {
@@ -56,12 +56,12 @@ export class ShaderPass {
           vec2 distVec = uv - center;
           float dist = length(distVec);
 
-          // 1. Radial Motion Warp
+          // 1. Radial Motion Warp in Turbo
           float warpFactor = uTurbo * 0.045 * sin(dist * 18.0 - uTime * 12.0);
           vec2 warpedUv = uv - distVec * warpFactor;
 
-          // 2. Chromatic Aberration (reactive on kicks and turbo)
-          float shiftAmount = (0.002 + uBeatPulse * 0.005 + uTurbo * 0.012) * (dist + 0.2);
+          // 2. Chromatic Aberration (kicks with bass beats and turbo)
+          float shiftAmount = (0.0018 + uBeatPulse * 0.0045 + uTurbo * 0.010) * (dist + 0.2);
           float r = texture2D(tDiffuse, warpedUv + vec2(shiftAmount, 0.0)).r;
           float g = texture2D(tDiffuse, warpedUv).g;
           float b = texture2D(tDiffuse, warpedUv - vec2(shiftAmount, 0.0)).b;
@@ -71,17 +71,17 @@ export class ShaderPass {
           if (uTurbo > 0.01) {
             float angle = atan(distVec.y, distVec.x);
             float speedLine = sin(angle * 32.0 + uTime * 25.0);
-            speedLine = smoothstep(0.7, 1.0, speedLine) * uTurbo * smoothstep(0.25, 0.8, dist);
-            color += vec3(speedLine * 0.35);
+            speedLine = smoothstep(0.72, 1.0, speedLine) * uTurbo * smoothstep(0.25, 0.8, dist);
+            color += vec3(speedLine * 0.32);
           }
 
-          // 4. Subtle Film Grain
-          float grain = (rand(uv * uTime) - 0.5) * 0.032;
+          // 4. Subtle Tactile Grain
+          float grain = (rand(uv * uTime) - 0.5) * 0.025;
           color += grain;
 
-          // 5. Aesthetic Radial Vignette
-          float vignette = 1.0 - smoothstep(0.48, 0.96, dist);
-          color *= mix(0.80, 1.0, vignette);
+          // 5. High-Contrast Vignette
+          float vignette = 1.0 - smoothstep(0.50, 0.98, dist);
+          color *= mix(0.82, 1.0, vignette);
 
           gl_FragColor = vec4(color, 1.0);
         }
