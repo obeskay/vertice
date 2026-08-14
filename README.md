@@ -3,99 +3,86 @@
 ![cover](assets/cover.png)
 
 Arcade de precisión hipnótico para el browser. Neobrutalista, minimalista,
-adictivo. Inspirado por Super Hexagon, con identidad propia: **el número de
-lados del nivel es tu número de posiciones de movimiento**.
+adictivo. Inspirado por Super Hexagon, con identidad propia: **controles fluidos a 360°, sintetizador de voz robótica arcade, progresión poligonal y sincronía musical en vivo**.
 
 **Jugar local:**
 ```bash
-python3 -m http.server 8088
-# abre http://localhost:8088
+python3 -m http.server 8089
+# abre http://localhost:8089
 ```
 
-## La mecánica identidad: CARRILES
+## Características Principales
 
-Cada tap mueve UN carril con deslizamiento ease-out (~80ms). El mouse apunta al
-carril más cercano al cursor, fijado en coordenadas de mundo (el mundo gira, tu
-objetivo no se arrastra).
+### 1. Control Dual: Arcade 360° & Carriles
+- **ARCADE FLUIDO (Predeterminado)**: Movimiento orbital continuo a 360° ultra-rápido, con inclinación física de la nave (banking) y estelas de propulsión.
+- **CARRILES DISCRETOS**: Salto preciso entre sectores del polígono para los amantes del puzzle geométrico.
+- **MOUSE / PUNTERO**: Seguimiento angular 1:1 quirúrgico sin retardo.
 
-| Rank | Lados = Carriles |
-|---|---|
-| PUNTO / LÍNEA | 2 |
-| TRIÁNGULO | 3 |
-| CUADRADO | 4 |
-| PENTÁGONO | 5 |
-| HEXÁGONO | 6 |
-| VÉRTICE | 8 |
+### 2. Sintetizador de Voz Robótica Arcade
+Locutor arcade integrado que anuncia en tiempo real:
+`"BEGIN!"`, `"TRIÁNGULO!"`, `"CUADRADO!"`, `"HEXÁGONO!"`, `"VÉRTICE!"`, `"GAME OVER!"`, `"NEW RECORD!"`, `"ESCUDO!"`, `"SLOW MOTION!"`.
 
-El fondo se divide en **gajos** (cuñas A/B del mismo hue) que contra-rotan con
-parallax contra los muros. El centro adopta la forma del nivel. La dificultad
-es la geometría misma.
+### 3. 4 Modos de Juego
+| Modo | Velocidad | Descripción |
+|---|---|---|
+| **NORMAL** | 4.2 → 9.4 | Progresión clásica de Punto a Vértice. |
+| **HIPER** | 6.2 → 11.0 | Desafío de alta velocidad para pilotos experimentados. |
+| **EXTREMO** | 8.5 → 12.8 | Velocidad implacable y reversas impredecibles. |
+| **ZEN** | 3.8 → 4.8 | Modo flujo infinito sin muerte para calentar y relajarse. |
+
+### 4. Banda Sonora Darksynth con Sidechain Real
+- Síntesis de bombo 808 potente con efecto *sidechain ducking* en acordes y bajos.
+- Barridos dinámicos de filtro Low-Pass en cámara lenta y Game Over.
+- Aceleración continua de BPM (145 → 220+ BPM).
+
+### 5. Cámara Dinámica & 3D Neobrutalista
+- *Camera Roll / Banking* dinámico ante giros e inversiones.
+- Fondos de gajos hipnóticos alternados en contratono.
+- 14 patrones rítmicos de muros (Spirals, Gauntlet, Cannon, Chevron, Slalom, etc.).
+- Shader post-procesado con aberración cromática, speed lines en turbo y grano de película.
 
 ## Controles
 
-- `←` / `→` o `A` / `D`: saltar de carril (hold = auto-repeat)
-- **Mouse**: apunta al carril (precisión quirúrgica)
-- `SHIFT` / `W` / `↑`: **TURBO** (transiciones ×1.7)
-- Móvil: toca izquierda/derecha, dos dedos = turbo
-- `ESPACIO`: empezar/reiniciar · `ESC`: pausa
+- `←` / `→` o `A` / `D`: girar / mover
+- `SHIFT` / `W` / `↑`: **TURBO** (velocidad ×1.6)
+- **Mouse**: apunta directamente en órbita
+- **Móvil**: toca izquierda/derecha, dos dedos = turbo
+- `ESPACIO` / `ENTER` / `R`: empezar/reiniciar
+- `ESC` / `P`: pausa
 
-## Power-ups y combos
+## Power-ups y Combos
 
-- **ESCUDO** (cuadrado): una muerte gratis, aplasta los muros cercanos
-- **CALMA** (triángulo): cámara lenta 3s para respirar
+- **ESCUDO** (cuadrado blanco): una muerte gratis, aplasta los muros cercanos
+- **CALMA** (triángulo verde): cámara lenta 3.2s con filtro de audio sumergido
 - **FLOW**: encadena 3 rozes (near-miss) y gana 1.5s de invulnerabilidad
 
-Los orbes viajan en los huecos de los anillos: agarrarlos exige atravesar el
-gap con precisión. Riesgo/premio puro.
+## SYNC ♪ (Modo osu!)
 
-## SYNC ♪ (modo osu!)
-
-Pulsa `SYNC ♪`, elige la pestaña donde suena tu música (YouTube, Spotify web)
-marcando "Compartir audio de la pestaña", y el juego detecta los beats en vivo:
-los muros spawnean cuantizados al beat, la velocidad se adapta al BPM estimado
-y los pulsos visuales siguen tu canción. La música sintética se silencia
-mientras dura. (Detecta beats y BPM; no el nombre de la canción.)
-
-## Por qué se siente bien (técnicas)
-
-- **Fixed timestep 240Hz + interpolación de render**: física idéntica en 60Hz y 240Hz
-- **Swept collision**: la banda radial del jugador se barre entre frames; el tunelaje es imposible
-- **Hitbox más chica que el sprite**: "rozé y no morí" se siente justo
-- **Hitstop + slow-mo** al morir, **near-miss** con shockwave hexagonal
-- **Geometrías cacheadas** por número de lados, cero reconstrucción por frame
-- **Audio 100% sintético** (Web Audio): kick, hats, bajo con sidechain, BPM que acelera
-- **Beat tracking externo**: energía de bombo 40-190Hz con umbral adaptativo + mediana de intervalos
-- **Anti-epilepsia**: hue shift 6°/s, flash 0.02, respeta `prefers-reduced-motion`
-- 14 draw calls en juego típico. Three.js vendored, sin build, sin dependencias
+Pulsa `SYNC ♪`, comparte una pestaña con audio (YouTube, Spotify web) y el juego sincronizará el spawn de muros y el pulso visual al BPM detectado en tiempo real.
 
 ## Estructura
 
 ```
 src/
-  main.js                orquestador: game loop, input, estados
+  main.js                Orquestador: game loop 240Hz, input, estados
   engine/
-    Renderer.js          cámara, gajos (parallax), centro poligonal, shake/FOV
-    PaletteManager.js    hue drift, pares de color por rol
-    AudioEngine.js       música sintética + SFX (Web Audio)
-    MusicSync.js         captura de pestaña + beat tracking (modo osu!)
-    ParticleSystem.js    trail, shockwaves, polvo
+    Renderer.js          Cámara con banking, gajos de fondo, centro poligonal, shake/FOV
+    ShaderPass.js        Post-procesado WebGL (aberración cromática, speed lines, grain)
+    AudioEngine.js       Sintetizador Darksynth con sidechain ducking y filtros dinámicos
+    VoiceEngine.js       Locutor robótico arcade (Web Speech API + synth fallback)
+    PaletteManager.js    Deriva suave de hue HSL y contraste alto
+    MusicSync.js         Beat tracking externo para modo osu!
+    ParticleSystem.js    Estelas, ondas expansivas hexagonales y explosiones
   game/
-    Player.js            carriles, easing, hitbox
-    WallManager.js       patrones, swept collision, near-miss
-    PowerUpManager.js    orbes en los gaps
-    LevelSystem.js       ranks = lados, velocidad con onda, reversas telegrafiadas
-    ScoreSystem.js       tiempo, récord, rozes
+    Player.js            Control arcade 360° / carriles, banking tilt, jet thruster
+    WallManager.js       14 patrones rítmicos, swept collision, near-misses
+    PowerUpManager.js    Orbes en los huecos de los anillos
+    LevelSystem.js       Modos de juego, progresión de rangos y rotación orgánica
+    ScoreSystem.js       Récords independientes por modo, calificaciones y leaderboard
   ui/
-    HUDManager.js        HUD mínimo, overlays, toasts
+    HUDManager.js        HUD Neobrutalista, selector de modos, toggles y tablas
 ```
-
-## Hecho con IAs (y un humano con criterio)
-
-Construido en una sesión con agentes de IA coordinados por markdown (el log real
-está en `docs/prompts/`). El artículo de aprendizajes:
-**[docs/aprendizaje.md](docs/aprendizaje.md)** — cómo modelos como Kimi K3
-hacen posible el desarrollo de videojuegos.
 
 ## Licencia
 
-MIT. Juégalo, rómpelo, haz fork.
+MIT. Juégalo, rómpelo, compártelo.

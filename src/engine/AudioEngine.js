@@ -1,7 +1,11 @@
 /**
  * AudioEngine
- * Continuous BPM Acceleration Synthesizer for VÉRTICE.
- * Tempo accelerates dynamically from 145 BPM up to 215+ BPM as survival time increases.
+ * Continuous BPM Acceleration Synthesizer & Dynamic Audio Processor for VÉRTICE.
+ * Features:
+ * - Dynamic sidechain ducking compression on beat kicks
+ * - Master multi-mode dynamic filter (low-pass sweep in slow-mo/death, resonant boost in turbo)
+ * - 4-bar darksynth progression with arpeggios, driving bass and crisp percussion
+ * - Accelerates dynamically with survival time from 145 BPM to 220+ BPM
  */
 export class AudioEngine {
   constructor() {
@@ -15,6 +19,7 @@ export class AudioEngine {
     this.timerId = null;
 
     this.beatPulse = 0;
+    this.sidechainAmount = 0;
     
     // Escala menor armónica A (Darksynth Arcade)
     this.scale = [110.00, 130.81, 146.83, 164.81, 174.61, 220.00, 261.63, 293.66, 329.63, 440.00];
@@ -35,6 +40,9 @@ export class AudioEngine {
 
     this.barIndex = 0;
     this.masterGain = null;
+    this.synthBusGain = null;
+    this.masterFilter = null;
+    this._turboActive = false;
   }
 
   init() {
@@ -43,12 +51,23 @@ export class AudioEngine {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     this.ctx = new AudioCtx();
 
+    // Master bus structure: SynthBus -> MasterFilter -> MasterGain -> Analyser -> Destination
+    this.synthBusGain = this.ctx.createGain();
+    this.synthBusGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+
+    this.masterFilter = this.ctx.createBiquadFilter();
+    this.masterFilter.type = 'lowpass';
+    this.masterFilter.frequency.setValueAtTime(20000, this.ctx.currentTime);
+    this.masterFilter.Q.setValueAtTime(1.0, this.ctx.currentTime);
+
     this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.setValueAtTime(0.32, this.ctx.currentTime);
+    this.masterGain.gain.setValueAtTime(0.35, this.ctx.currentTime);
 
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 64;
 
+    this.synthBusGain.connect(this.masterFilter);
+    this.masterFilter.connect(this.masterGain);
     this.masterGain.connect(this.analyser);
     this.analyser.connect(this.ctx.destination);
   }
@@ -63,6 +82,7 @@ export class AudioEngine {
       this.currentStep = 0;
       this.barIndex = 0;
       this.nextNoteTime = this.ctx.currentTime;
+      this.setFilterCutoff(20000, 0.1);
       this.scheduler();
     }
   }
@@ -91,22 +111,40 @@ export class AudioEngine {
 
   setMuted(muted) {
     this.isMuted = muted;
-    if (this.masterGain) {
-      this.masterGain.gain.setValueAtTime(muted ? 0 : 0.32, this.ctx.currentTime);
+    if (this.masterGain && this.ctx) {
+      this.masterGain.gain.setValueAtTime(muted ? 0 : 0.35, this.ctx.currentTime);
     }
   }
 
   setTempo(bpm) {
-    this.tempo = Math.max(130, Math.min(220, bpm));
+    this.tempo = Math.max(130, Math.min(230, bpm));
   }
 
   updateBpm(survivalTime = 0) {
-    const acceleratedBpm = 145 + survivalTime * 0.85;
+    const acceleratedBpm = 145 + survivalTime * 0.9;
     this.setTempo(acceleratedBpm);
   }
 
+  setFilterCutoff(freq, transitionTime = 0.1) {
+    if (!this.ctx || !this.masterFilter) return;
+    const now = this.ctx.currentTime;
+    this.masterFilter.frequency.cancelScheduledValues(now);
+    this.masterFilter.frequency.exponentialRampToValueAtTime(
+      Math.max(200, Math.min(20000, freq)),
+      now + transitionTime
+    );
+  }
+
+  applySidechainDucking(time) {
+    if (!this.synthBusGain || !this.ctx) return;
+    // Duck synths by 50% on kick and smoothly recover in 90ms
+    this.synthBusGain.gain.cancelScheduledValues(time);
+    this.synthBusGain.gain.setValueAtTime(0.48, time);
+    this.synthBusGain.gain.exponentialRampToValueAtTime(1.0, time + 0.09);
+  }
+
   scheduler() {
-    if (!this.isPlaying) return;
+    if (!this.isPlaying || !this.ctx) return;
 
     while (this.nextNoteTime < this.ctx.currentTime + 0.1) {
       this.scheduleStep(this.currentStep, this.nextNoteTime);
@@ -122,12 +160,13 @@ export class AudioEngine {
   }
 
   scheduleStep(step, time) {
-    if (this.isMuted) return;
+    if (this.isMuted || !this.ctx) return;
 
     const currentChord = this.chords[this.barIndex];
 
     if (this.kickPattern[step]) {
       this.playKick(time);
+      this.applySidechainDucking(time);
       this.beatPulse = 1.0;
     }
 
@@ -154,21 +193,21 @@ export class AudioEngine {
     const gain = this.ctx.createGain();
 
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(150, time);
-    osc.frequency.exponentialRampToValueAtTime(35, time + 0.08);
+    osc.frequency.setValueAtTime(160, time);
+    osc.frequency.exponentialRampToValueAtTime(38, time + 0.085);
 
-    gain.gain.setValueAtTime(0.85, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+    gain.gain.setValueAtTime(0.95, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.085);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.masterGain); // Direct to master to bypass sidechain
 
     osc.start(time);
-    osc.stop(time + 0.08);
+    osc.stop(time + 0.085);
   }
 
   playSnare(time) {
-    const bufferSize = this.ctx.sampleRate * 0.12;
+    const bufferSize = Math.floor(this.ctx.sampleRate * 0.12);
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const output = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
@@ -181,7 +220,7 @@ export class AudioEngine {
     filter.frequency.setValueAtTime(1200, time);
 
     const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(0.25, time);
+    gain.gain.setValueAtTime(0.28, time);
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.12);
 
     noise.connect(filter);
@@ -193,8 +232,8 @@ export class AudioEngine {
   }
 
   playHat(time, isOpen = false) {
-    const dur = isOpen ? 0.05 : 0.02;
-    const bufferSize = this.ctx.sampleRate * dur;
+    const dur = isOpen ? 0.055 : 0.025;
+    const bufferSize = Math.floor(this.ctx.sampleRate * dur);
     const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
     const output = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
@@ -207,7 +246,7 @@ export class AudioEngine {
     filter.frequency.setValueAtTime(7500, time);
 
     const gain = this.ctx.createGain();
-    gain.gain.setValueAtTime(isOpen ? 0.14 : 0.08, time);
+    gain.gain.setValueAtTime(isOpen ? 0.16 : 0.09, time);
     gain.gain.exponentialRampToValueAtTime(0.001, time + dur);
 
     noise.connect(filter);
@@ -227,15 +266,15 @@ export class AudioEngine {
     osc.frequency.setValueAtTime(freq, time);
 
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(650, time);
-    filter.frequency.exponentialRampToValueAtTime(140, time + 0.09);
+    filter.frequency.setValueAtTime(700, time);
+    filter.frequency.exponentialRampToValueAtTime(150, time + 0.09);
 
-    gain.gain.setValueAtTime(0.38, time);
+    gain.gain.setValueAtTime(0.42, time);
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.09);
 
     osc.connect(filter);
     filter.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.synthBusGain); // Connected to Synth Bus for Sidechain!
 
     osc.start(time);
     osc.stop(time + 0.09);
@@ -248,14 +287,14 @@ export class AudioEngine {
     osc.type = 'square';
     osc.frequency.setValueAtTime(freq, time);
 
-    gain.gain.setValueAtTime(0.08, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.07);
+    gain.gain.setValueAtTime(0.11, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.075);
 
     osc.connect(gain);
-    gain.connect(this.masterGain);
+    gain.connect(this.synthBusGain); // Connected to Synth Bus for Sidechain!
 
     osc.start(time);
-    osc.stop(time + 0.07);
+    osc.stop(time + 0.075);
   }
 
   playNearMiss() {
@@ -271,9 +310,9 @@ export class AudioEngine {
 
     osc.type = 'sine';
     osc.frequency.setValueAtTime(880, time);
-    osc.frequency.exponentialRampToValueAtTime(1760, time + 0.08);
+    osc.frequency.exponentialRampToValueAtTime(1850, time + 0.08);
 
-    gain.gain.setValueAtTime(0.35, time);
+    gain.gain.setValueAtTime(0.38, time);
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
 
     osc.connect(gain);
@@ -290,24 +329,24 @@ export class AudioEngine {
   playRankUpSound() {
     if (!this.ctx || this.isMuted) return;
     const time = this.ctx.currentTime;
-    const notes = [440, 554.37, 659.25, 880];
+    const notes = [440, 554.37, 659.25, 880, 1108.73];
 
     notes.forEach((freq, idx) => {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
 
-      const startTime = time + idx * 0.06;
+      const startTime = time + idx * 0.05;
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(freq, startTime);
 
-      gain.gain.setValueAtTime(0.3, startTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.2);
+      gain.gain.setValueAtTime(0.32, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.22);
 
       osc.connect(gain);
       gain.connect(this.masterGain);
 
       osc.start(startTime);
-      osc.stop(startTime + 0.2);
+      osc.stop(startTime + 0.22);
     });
   }
 
@@ -318,12 +357,12 @@ export class AudioEngine {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
-    const baseFreq = dir > 0 ? 520 : 440;
+    const baseFreq = dir > 0 ? 550 : 460;
     osc.type = 'sine';
     osc.frequency.setValueAtTime(baseFreq, time);
-    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.3, time + 0.035);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.35, time + 0.035);
 
-    gain.gain.setValueAtTime(0.18, time);
+    gain.gain.setValueAtTime(0.19, time);
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.035);
 
     osc.connect(gain);
@@ -341,10 +380,10 @@ export class AudioEngine {
     const gain = this.ctx.createGain();
 
     osc.type = 'triangle';
-    osc.frequency.setValueAtTime(600, time);
-    osc.frequency.exponentialRampToValueAtTime(200, time + 0.04);
+    osc.frequency.setValueAtTime(650, time);
+    osc.frequency.exponentialRampToValueAtTime(220, time + 0.04);
 
-    gain.gain.setValueAtTime(0.2, time);
+    gain.gain.setValueAtTime(0.22, time);
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.04);
 
     osc.connect(gain);
@@ -362,33 +401,35 @@ export class AudioEngine {
     const gain = this.ctx.createGain();
 
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(90, time);
-    osc.frequency.exponentialRampToValueAtTime(20, time + 0.4);
+    osc.frequency.setValueAtTime(95, time);
+    osc.frequency.exponentialRampToValueAtTime(20, time + 0.45);
 
-    gain.gain.setValueAtTime(0.9, time);
-    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.4);
+    gain.gain.setValueAtTime(0.95, time);
+    gain.gain.exponentialRampToValueAtTime(0.01, time + 0.45);
 
     osc.connect(gain);
     gain.connect(this.masterGain);
 
     osc.start(time);
-    osc.stop(time + 0.4);
+    osc.stop(time + 0.45);
+
+    // Muffled low-pass filter sweep on death
+    this.setFilterCutoff(450, 0.4);
   }
 
-  /** Power-up recogido: arpegio chico ascendente */
   playPowerUp(type) {
     if (!this.ctx || this.isMuted) return;
     const time = this.ctx.currentTime;
-    const notes = type === 'ESCUDO' ? [523.25, 784.99] : [659.25, 987.77];
+    const notes = type === 'ESCUDO' ? [523.25, 784.99, 1046.50] : [659.25, 987.77, 1318.51];
 
     notes.forEach((freq, idx) => {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
-      const t = time + idx * 0.07;
+      const t = time + idx * 0.06;
 
       osc.type = 'square';
       osc.frequency.setValueAtTime(freq, t);
-      gain.gain.setValueAtTime(0.14, t);
+      gain.gain.setValueAtTime(0.16, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
 
       osc.connect(gain);
@@ -398,7 +439,6 @@ export class AudioEngine {
     });
   }
 
-  /** Escudo roto: golpe metálico + caída */
   playShieldBreak() {
     if (!this.ctx || this.isMuted) return;
     const time = this.ctx.currentTime;
@@ -406,10 +446,10 @@ export class AudioEngine {
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(320, time);
-    osc.frequency.exponentialRampToValueAtTime(70, time + 0.22);
-    gain.gain.setValueAtTime(0.3, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.22);
+    osc.frequency.setValueAtTime(340, time);
+    osc.frequency.exponentialRampToValueAtTime(65, time + 0.25);
+    gain.gain.setValueAtTime(0.35, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.25);
 
     const filter = this.ctx.createBiquadFilter();
     filter.type = 'lowpass';
@@ -419,7 +459,7 @@ export class AudioEngine {
     filter.connect(gain);
     gain.connect(this.masterGain);
     osc.start(time);
-    osc.stop(time + 0.22);
+    osc.stop(time + 0.25);
   }
 
   setTurboActive(active) {
@@ -428,13 +468,12 @@ export class AudioEngine {
       this._turboActive = true;
       const time = this.ctx.currentTime;
       
-      // Nitro Blast Sub-Impact & Jet Hiss
       const subOsc = this.ctx.createOscillator();
       const subGain = this.ctx.createGain();
       subOsc.type = 'sawtooth';
       subOsc.frequency.setValueAtTime(110, time);
-      subOsc.frequency.exponentialRampToValueAtTime(580, time + 0.18);
-      subGain.gain.setValueAtTime(0.35, time);
+      subOsc.frequency.exponentialRampToValueAtTime(620, time + 0.18);
+      subGain.gain.setValueAtTime(0.38, time);
       subGain.gain.exponentialRampToValueAtTime(0.001, time + 0.18);
       subOsc.connect(subGain);
       subGain.connect(this.masterGain);

@@ -1,24 +1,25 @@
-import { Renderer } from './engine/Renderer.js?v=1.0.11';
-import { AudioEngine } from './engine/AudioEngine.js?v=1.0.11';
-import { MusicSync } from './engine/MusicSync.js?v=1.0.11';
-import { ParticleSystem } from './engine/ParticleSystem.js?v=1.0.11';
-import { PaletteManager } from './engine/PaletteManager.js?v=1.0.11';
-import { Player } from './game/Player.js?v=1.0.11';
-import { WallManager } from './game/WallManager.js?v=1.0.11';
-import { PowerUpManager } from './game/PowerUpManager.js?v=1.0.11';
-import { LevelSystem } from './game/LevelSystem.js?v=1.0.11';
-import { ScoreSystem } from './game/ScoreSystem.js?v=1.0.11';
-import { HUDManager } from './ui/HUDManager.js?v=1.0.11';
+import { Renderer } from './engine/Renderer.js';
+import { AudioEngine } from './engine/AudioEngine.js';
+import { VoiceEngine } from './engine/VoiceEngine.js';
+import { MusicSync } from './engine/MusicSync.js';
+import { ParticleSystem } from './engine/ParticleSystem.js';
+import { PaletteManager } from './engine/PaletteManager.js';
+import { Player } from './game/Player.js';
+import { WallManager } from './game/WallManager.js';
+import { PowerUpManager } from './game/PowerUpManager.js';
+import { LevelSystem } from './game/LevelSystem.js';
+import { ScoreSystem } from './game/ScoreSystem.js';
+import { HUDManager } from './ui/HUDManager.js';
 
 /**
- * VÉRTICE — game loop de precisión:
- *
- * - SIMULACIÓN A TIMESTEP FIJO (240 Hz): la física es idéntica en cualquier
- *   monitor (60/120/144/240 Hz) y el input se muestrea 240 veces/segundo.
- * - RENDER INTERPOLADO: el frame visual interpola entre el estado anterior
- *   y el actual → movimiento mantecoso sin importar el refresh rate.
- * - HITSTOP + SLOW-MO: al morir, el tiempo se congela 90ms y luego se arrastra
- *   en cámara lenta — la muerte se SIENTE.
+ * VÉRTICE — Neobrutalist Precision Arcade Game Loop
+ * Features:
+ * - 240Hz Fixed-Timestep Simulation with Sub-Pixel Interpolated Rendering
+ * - Arcade 360° Orbital Control with Dynamic Banking Tilt
+ * - Darksynth Synthesizer with Sidechain Compression & Dynamic Filters
+ * - Iconic Robotic Voice Announcer ("BEGIN!", "HEXAGON!", "GAME OVER!")
+ * - 4 Game Modes (Normal, Hiper, Extremo, Zen)
+ * - Swept Radial Collision & Guaranteed Fair Patterns
  */
 const SIM_DT = 1 / 240;
 const MAX_STEPS = 40;
@@ -30,6 +31,7 @@ class Game {
 
     this.renderer = new Renderer('canvas-container');
     this.audio = new AudioEngine();
+    this.voice = new VoiceEngine(this.audio);
     this.sync = new MusicSync(this.audio);
     this.beatQueue = 0;
     this.particles = new ParticleSystem(this.renderer.scene);
@@ -41,10 +43,8 @@ class Game {
     this.level = new LevelSystem();
     this.score = new ScoreSystem();
 
-    // Power-ups montados en los gaps de los anillos nuevos
     this.walls.onRingSpawned = (ring) => this.powerups.onRingSpawned(ring);
 
-    // Estado de power-ups
     this.shield = false;
     this.calmaTimer = 0;
 
@@ -52,16 +52,16 @@ class Game {
     this.touchInputDir = 0;
     this.touchTurbo = false;
 
-    // Pointer steer (mouse): la nave sigue el cursor
+    // Pointer steer
     this.mouseActive = false;
     this.lastMouseMove = 0;
-    this.mouseScreenAngle = 0;
+    this.mouseWorldAngle = 0;
 
-    // Combo FLOW: rozes encadenados premian la agresividad
+    // Combo FLOW
     this.flowChain = 0;
     this.flowChainTimer = 0;
 
-    // Estado del input por carriles
+    // Lanes input tracking
     this._prevInputDir = 0;
     this._holdElapsed = 0;
     this._repeatElapsed = 0;
@@ -80,11 +80,26 @@ class Game {
     this.hud = new HUDManager({
       onStartGame: () => this.startGame(),
       onResumeGame: () => this.resume(),
+      onSelectMode: (mode) => {
+        this.level.setMode(mode);
+        this.score.setMode(mode);
+        return this.score.getFormattedBestTime(mode);
+      },
       onToggleAudio: () => {
         this.audio.init();
         const isMuted = !this.audio.isMuted;
         this.audio.setMuted(isMuted);
         return isMuted;
+      },
+      onToggleVoice: () => {
+        this.voice.setEnabled(!this.voice.enabled);
+        if (this.voice.enabled) this.voice.speak('VOZ ACTIVADA');
+        return this.voice.enabled;
+      },
+      onToggleControl: () => {
+        const mode = this.player.toggleControlMode();
+        this.audio.playUiClick();
+        return mode;
       },
       onTogglePalette: () => {
         const name = this.palette.nextPalette();
@@ -99,16 +114,22 @@ class Game {
         }
         try {
           await this.sync.start();
-          this.audio.stop(); // la música externa manda
+          this.audio.stop();
           return 'ON';
         } catch (err) {
-          console.warn('MusicSync cancelado:', err.message || err);
+          console.warn('MusicSync error:', err.message || err);
           return 'ERROR';
         }
       },
+      onGetLeaderboard: () => {
+        return {
+          mode: this.level.mode,
+          runs: this.score.loadLeaderboard()
+        };
+      },
       onTouchInput: (dir, pointerCount = 1) => {
         this.touchInputDir = -dir;
-        this.touchTurbo = pointerCount >= 2; // dos dedos = turbo
+        this.touchTurbo = pointerCount >= 2;
       }
     });
 
@@ -124,7 +145,9 @@ class Game {
 
   setupKeyboard() {
     window.addEventListener('keydown', (e) => {
-      if (['ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
+      if (['ArrowLeft', 'ArrowRight', 'Space', 'KeyA', 'KeyD'].includes(e.code)) {
+        if (this.state === 'PLAYING') e.preventDefault();
+      }
 
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') { this.keys.left = true; this._disengageMouse(); }
       if (e.code === 'ArrowRight' || e.code === 'KeyD') { this.keys.right = true; this._disengageMouse(); }
@@ -138,7 +161,7 @@ class Game {
         }
       }
 
-      if (e.code === 'Escape') {
+      if (e.code === 'Escape' || e.code === 'KeyP') {
         if (this.state === 'PLAYING') this.pause();
         else if (this.state === 'PAUSED') this.resume();
       }
@@ -152,12 +175,6 @@ class Game {
     });
   }
 
-  /** Pointer steer: el mouse apunta, la nave obedece.
-   * CLAVE 1: el ángulo se captura en coordenadas de MUNDO en el momento del
-   *   movimiento. Si no mueves el mouse, la nave no se arrastra con el mundo.
-   * CLAVE 2: el modo mouse SOLO se activa con movimiento real (≥7px desde el
-   *   último evento). El jitter del trackpad / palma apoyada jamás engancha.
-   * CLAVE 3: cualquier tecla de carril desengancha el mouse por completo. */
   setupPointerSteer() {
     this.mouseActive = false;
     this.lastMouseMove = 0;
@@ -167,14 +184,10 @@ class Game {
       const x = e.clientX, y = e.clientY;
       const now = performance.now();
       if (!this._mouseAnchor) {
-        // Sin referencia previa: este evento ES la referencia, no un movimiento
         this._mouseAnchor = { x, y };
         this._lastMoveEventAt = now;
         return;
       }
-      // Acumulador de intención: solo cuentan movimientos de ≥5px y decae
-      // 50px/s. La palma en el trackpad (1-4px) NUNCA engancha; un swipe real
-      // (≥10px por evento) engancha en 1-2 eventos.
       const dist = Math.hypot(x - this._mouseAnchor.x, y - this._mouseAnchor.y);
       const elapsed = now - (this._lastMoveEventAt || now);
       this._lastMoveEventAt = now;
@@ -187,7 +200,7 @@ class Game {
       const cx = window.innerWidth / 2;
       const cy = window.innerHeight / 2;
       const screenAngle = Math.atan2(-(y - cy), x - cx);
-      this.mouseWorldAngle = screenAngle - this.worldRotation; // fijo en el mundo
+      this.mouseWorldAngle = screenAngle - this.worldRotation;
     });
   }
 
@@ -207,7 +220,7 @@ class Game {
     this.player.reset();
     this.player.setLanes(this.level.sides);
     this._lastSides = this.level.sides;
-    this.lastMouseMove = 0; // el click en JUGAR no debe arrastrar la nave
+    this.lastMouseMove = 0;
     this.mouseActive = false;
     this._mouseAnchor = null;
     this.walls.reset(this.level.sides);
@@ -222,6 +235,8 @@ class Game {
     this.deathElapsed = 0;
 
     this.audio.start();
+    this.voice.announceStart();
+
     this.hud.updateTimer(this.score.getFormattedCurrentTime());
     this.hud.updateBestScore(this.score.getFormattedBestTime());
     this.hud.updateRank(this.level.ranks[0].name);
@@ -246,11 +261,16 @@ class Game {
     this.state = 'DYING';
     document.body.classList.remove('playing');
     this.deathElapsed = 0;
-    this.timeScale = 0; // HITSTOP: el mundo se congela un instante
+    this.timeScale = 0;
 
     this.audio.playExplosionSound();
+    this.voice.announceGameOver();
     this.vibrate(60);
     this.score.commit(this.level.ranks[this.level.currentRankIndex].name);
+
+    if (this.score.isNewRecord) {
+      setTimeout(() => this.voice.announceNewRecord(), 1000);
+    }
 
     const pos = this.player.getRenderPosition();
     this.particles.triggerExplosion(pos.x, pos.y, this.palette.getBlended('primary'));
@@ -293,7 +313,6 @@ class Game {
     this.hud.syncAccent(this.palette.getBlendedAccentCss());
   }
 
-  /* ── Adaptadores de ParticleSystem: toleran ambas APIs (núcleo/presentación) ── */
   fxShockwave(x, y, colorHex, speed = 18) {
     if (typeof this.particles.triggerShockwave === 'function') {
       this.particles.triggerShockwave(x, y, colorHex, speed);
@@ -331,14 +350,16 @@ class Game {
     if (collected.type === 'ESCUDO') {
       this.shield = true;
       this.player.showShield(true);
+      this.voice.announceShield();
       this.hud.showRankNotification('ESCUDO');
     } else if (collected.type === 'CALMA') {
-      this.calmaTimer = 3.0;
+      this.calmaTimer = 3.2;
+      this.voice.announceSlowMo();
       this.hud.showRankNotification('CALMA');
+      this.audio.setFilterCutoff(950, 0.25);
     }
   }
 
-  /** El teclado manda: el mouse queda desenganchado hasta un movimiento real */
   _disengageMouse() {
     this.mouseActive = false;
     this.lastMouseMove = 0;
@@ -346,7 +367,6 @@ class Game {
     this._jitterAccum = 0;
   }
 
-  /** Un paso de simulación a timestep fijo */
   vibrate(pattern) {
     if (typeof navigator !== 'undefined' && navigator.vibrate) {
       try { navigator.vibrate(pattern); } catch (e) {}
@@ -367,6 +387,7 @@ class Game {
     if (levelStatus.rankChanged) {
       this.hud.updateRank(levelStatus.rankName);
       this.hud.showRankNotification(levelStatus.rankName);
+      this.voice.announceRank(levelStatus.rankName);
       this.renderer.triggerScreenShake(this.reducedMotion ? 0.15 : 0.45);
       this.renderer.triggerFovKick(7);
       this.audio.playRankUp();
@@ -375,7 +396,7 @@ class Game {
     }
     if (levelStatus.sides !== this._lastSides) {
       this._lastSides = levelStatus.sides;
-      this.player.setLanes(levelStatus.sides); // los carriles = los lados del nivel
+      this.player.setLanes(levelStatus.sides);
     }
 
     this.audio.setTempo(140 + levelStatus.speed * 4.5);
@@ -383,25 +404,26 @@ class Game {
     const inputDir = this.getInputDir();
     this.lastInputDir = inputDir;
 
-    // INPUT POR CARRILES: flanco de subida = 1 salto; hold = auto-repeat
-    if (inputDir !== 0 && this._prevInputDir === 0) {
-      this._performLaneMove(inputDir);
-      this._holdElapsed = 0;
-      this._repeatElapsed = 0;
-    } else if (inputDir !== 0) {
-      this._holdElapsed += dt;
-      if (this._holdElapsed > 0.17) {
-        this._repeatElapsed += dt;
-        if (this._repeatElapsed >= 0.105) {
-          this._repeatElapsed = 0;
-          this._performLaneMove(inputDir);
+    // Discrete lane step processing if in Lanes mode
+    if (this.player.controlMode === 'LANES') {
+      if (inputDir !== 0 && this._prevInputDir === 0) {
+        this._performLaneMove(inputDir);
+        this._holdElapsed = 0;
+        this._repeatElapsed = 0;
+      } else if (inputDir !== 0) {
+        this._holdElapsed += dt;
+        if (this._holdElapsed > 0.17) {
+          this._repeatElapsed += dt;
+          if (this._repeatElapsed >= 0.105) {
+            this._repeatElapsed = 0;
+            this._performLaneMove(inputDir);
+          }
         }
       }
     }
     this._prevInputDir = inputDir;
 
-    // Pointer steer: activo solo si el mouse se movió hace poco y NO hay teclas.
-    // mouseWorldAngle está fijo en el mundo: no hay arrastre por la rotación.
+    // Pointer steer logic
     const keysHeld = this.keys.left || this.keys.right || this.touchInputDir !== 0;
     const mouseFresh = this.mouseActive && (performance.now() - this.lastMouseMove < 1500);
     let pointerAngle = null;
@@ -412,7 +434,11 @@ class Game {
     const turbo = this.keys.turbo || this.touchTurbo;
     this.player.update(dt, inputDir, turbo, pointerAngle);
 
-    // Spawn cuantizado al beat externo (modo osu!) o por timer normal
+    // Trail particle emission
+    const pPos = this.player.getRenderPosition();
+    this.fxTrail(pPos.x, pPos.y);
+
+    // Wall updates
     const speedMult = this.sync.active ? this.sync.getSpeedMultiplier() : 1;
     const result = this.walls.update(
       dt, levelStatus.speed * speedMult, levelStatus.sides,
@@ -421,7 +447,6 @@ class Game {
 
     if (this.sync.active && this.beatQueue > 0) {
       this.beatQueue--;
-      // Cada N beats según la densidad objetivo de muros
       this._beatCounter = (this._beatCounter || 0) + 1;
       const beatsPerSpawn = Math.max(
         1, Math.round(this.walls.spawnInterval / this.sync.currentInterval)
@@ -431,7 +456,7 @@ class Game {
       }
     }
 
-    // Power-ups: colección en el mismo paso de simulación
+    // Power-up updates
     const puResult = this.powerups.update(
       dt, this.player.getHitbox(),
       this.walls.centerRadius, this.walls.wallThickness
@@ -449,20 +474,29 @@ class Game {
         this.palette.getBlended('primary'), 9
       );
 
-      // Combo FLOW: 3 rozes encadenados = 1.5s de invulnerabilidad
       this.flowChain++;
       this.flowChainTimer = 2.5;
       if (this.flowChain >= 3) {
         this.flowChain = 0;
         this.walls.ghostTime = Math.max(this.walls.ghostTime, 1.5);
-        this.hud.showRankNotification('FLOW');
+        this.hud.showRankNotification('FLOW COMBO');
+        this.voice.announceFlow();
         this.audio.playRankUp();
       }
     }
 
     if (result.collision) {
+      // In ZEN mode, bounce instead of dying!
+      if (this.level.mode === 'ZEN') {
+        this.walls.ghostTime = 1.2;
+        this.walls.crushNearbyWalls(this.player.radius);
+        this.audio.playShieldBreak();
+        this.renderer.triggerScreenShake(0.3);
+        this.hud.showRankNotification('REBOTE ZEN');
+        return;
+      }
+
       if (this.shield) {
-        // El escudo absorbe la muerte: ghost + aplasta muros cercanos
         this.shield = false;
         this.player.showShield(false);
         this.walls.ghostTime = 1.0;
@@ -490,12 +524,15 @@ class Game {
     this.applyPaletteTheme();
 
     if (this.state === 'PLAYING') {
-      // CALMA: cámara lenta suave con easing de entrada/salida
-      if (this.calmaTimer > 0) this.calmaTimer -= rawDt;
+      if (this.calmaTimer > 0) {
+        this.calmaTimer -= rawDt;
+        if (this.calmaTimer <= 0) {
+          this.audio.setFilterCutoff(20000, 0.35); // Restore audio filter
+        }
+      }
       const targetTimeScale = this.calmaTimer > 0 ? 0.55 : 1;
       this.timeScale += (targetTimeScale - this.timeScale) * Math.min(1, rawDt * 3.5);
 
-      // Decaimiento del combo FLOW
       if (this.flowChainTimer > 0) {
         this.flowChainTimer -= rawDt;
         if (this.flowChainTimer <= 0) this.flowChain = 0;
@@ -513,47 +550,40 @@ class Game {
 
       this.hud.updateTimer(this.score.getFormattedCurrentTime());
     } else if (this.state === 'DYING') {
-      // Timeline de muerte: hitstop → slow-mo → game over
       this.deathElapsed += rawDt;
       if (this.deathElapsed < 0.09) {
-        this.timeScale = 0; // congelado
+        this.timeScale = 0;
       } else if (this.deathElapsed < 0.95) {
-        this.timeScale = 0.12; // cámara lenta dramática
+        this.timeScale = 0.12;
       } else {
         this.showGameOver();
       }
 
-      // El mundo sigue respirando en slow-mo
       this.prevWorldRotation = this.worldRotation;
       this.worldRotation += this.level.rotationSpeed * rawDt * this.timeScale;
     } else if (this.state === 'MENU' || this.state === 'GAMEOVER') {
-      // Mundo idle girando lentamente detrás del menú
       this.prevWorldRotation = this.worldRotation;
       this.worldRotation += rawDt * 0.15;
     }
 
-    // Audio en tiempo real con aceleración continua de BPM
     this.audio.updateBpm(this.score.currentTime);
     this.audio.update(rawDt);
 
-    // Música externa: beat tracking por frame (alimenta beatQueue para el sim)
     if (this.sync.active) {
       if (this.sync.update(rawDt)) this.beatQueue++;
       if (this.sync.bpm > 0) this.hud.updateBpm(Math.round(this.sync.bpm));
     }
 
-    // Pulso del beat (fuente: música externa si está activa, si no el sintetizador)
     const beatPulse = this.sync.active ? this.sync.beatPulse : this.audio.beatPulse;
     if (beatPulse > this.prevBeatPulse) {
-      this.renderer.triggerBgFlash(this.palette.getBlended('primary'), 0.02);
+      this.renderer.triggerBgFlash(this.palette.getBlended('primary'), 0.025);
     }
     this.prevBeatPulse = beatPulse;
 
-    // Partículas con tiempo escalado (slow-mo las arrastra = dramático)
     const particleDt = rawDt * (this.state === 'DYING' ? Math.max(this.timeScale, 0.35) : 1);
     this.particles.update(particleDt, this.level.speed / 4.0);
 
-    // ── Render interpolado ──
+    // Render pass
     const alpha = this.state === 'PLAYING'
       ? Math.min(1, this.accumulator / SIM_DT)
       : 1;
@@ -566,13 +596,15 @@ class Game {
     this.audio.setTurboActive(isTurboActive);
     this.hud.updateTurbo(isTurboActive);
     this.hud.updateCombo(this.state === 'PLAYING' ? this.flowChain : 0);
+
     const renderRotation = this.prevWorldRotation + (this.worldRotation - this.prevWorldRotation) * alpha;
-    this.renderer.render(beatPulse, rawDt, renderRotation, isTurboActive);
+    const playerTilt = this.player.tilt || 0;
+    this.renderer.render(beatPulse, rawDt, renderRotation, isTurboActive, playerTilt);
 
     requestAnimationFrame((t) => this.gameLoop(t));
   }
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  window.__game = new Game(); // handle de depuración (consola)
+  window.__game = new Game();
 });

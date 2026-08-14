@@ -46,8 +46,10 @@
         <div class="dock-pill sync-pill hidden" id="sync-pill">
           <span id="bpm-display">♪ ---</span>
         </div>
-        <div class="dock-pill near-miss-pill hidden" id="near-miss-indicator"><span id="near-miss-text">ROZE!</span></div>
-        <div class="dock-pill">
+        <div class="dock-pill near-miss-pill hidden" id="near-miss-indicator">
+          <span id="near-miss-text">ROZE!</span>
+        </div>
+        <div class="dock-pill time-pill">
           <span class="pill-label">TIME</span>
           <span id="timer-display">00:00.0</span>
         </div>
@@ -64,8 +66,18 @@
       <div class="neo-card">
         <div class="brand-tag">NEOBRUTALIST ARCADE</div>
         <h1 class="logo-title">VÉRTICE<span class="dot">.</span></h1>
+
+        <!-- Mode Selector -->
+        <div class="mode-selector" id="mode-selector">
+          <button class="btn-mode active" data-mode="NORMAL">NORMAL</button>
+          <button class="btn-mode" data-mode="HIPER">HIPER</button>
+          <button class="btn-mode" data-mode="EXTREMO">EXTREMO</button>
+          <button class="btn-mode" data-mode="ZEN">ZEN</button>
+        </div>
         
+        <!-- Game Over Stats Summary -->
         <div id="game-stats-summary" class="stats-summary hidden">
+          <div id="record-badge" class="record-badge hidden">★ NUEVO RÉCORD ★</div>
           <div class="stat-box">
             <span class="stat-label">TIEMPO</span>
             <span id="final-time" class="stat-value">00:00.0</span>
@@ -94,11 +106,27 @@
           <kbd class="key">SHIFT</kbd> <span class="or-separator">turbo</span>
         </div>
 
-        <div class="settings-row">
+        <!-- Settings Buttons -->
+        <div class="settings-grid">
+          <button id="btn-control-toggle" class="btn-neo-sub">CTRL: ARCADE</button>
+          <button id="btn-voice-toggle" class="btn-neo-sub">VOZ: ON</button>
           <button id="btn-audio-toggle" class="btn-neo-sub">AUDIO: ON</button>
           <button id="btn-palette-toggle" class="btn-neo-sub">PALETA</button>
           <button id="btn-sync-toggle" class="btn-neo-sub">SYNC ♪</button>
+          <button id="btn-leaderboard-toggle" class="btn-neo-sub">RÉCORDS</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Leaderboard Modal Overlay -->
+    <div id="leaderboard-overlay" class="overlay hidden">
+      <div class="neo-card leaderboard-card">
+        <div class="brand-tag">MEJORES TIEMPOS</div>
+        <h2 class="sub-title" id="lb-title">RÉCORDS — NORMAL</h2>
+        <div class="leaderboard-list" id="leaderboard-list">
+          <!-- Populated by JS -->
+        </div>
+        <button id="btn-close-leaderboard" class="btn-neo">VOLVER</button>
       </div>
     </div>
 
@@ -112,7 +140,7 @@
           CONTINUAR
         </button>
 
-        <button id="btn-pause-restart" class="btn-neo-sub" style="font-size: 0.9rem; padding: 0.7rem;">
+        <button id="btn-pause-restart" class="btn-neo-sub" style="font-size: 0.9rem; padding: 0.75rem;">
           REINICIAR
         </button>
 
@@ -133,6 +161,6 @@
     </div>
   </div>
 
-  <script type="module" src="src/main.js?v=1.0.11"></script>
+  <script type="module" src="src/main.js"></script>
 </body>
 </html>

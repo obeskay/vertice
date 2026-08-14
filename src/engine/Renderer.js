@@ -1,11 +1,10 @@
 import * as THREE from 'three';
-import { ShaderPass } from './ShaderPass.js?v=1.0.11';
+import { ShaderPass } from './ShaderPass.js';
 
 /**
  * Renderer
- * Dramatic 3D Perspective camera with 100% crystal clear readability.
- * Zero light glare, high contrast, clean central polygon, screen shake,
- * and 2D Cartoon Neobrutalism ShaderPass with Turbo motion warp.
+ * Dramatic 3D Perspective Camera with Dynamic Camera Banking,
+ * Zero specular glare, Neobrutalist high contrast, and Cartoon ShaderPass.
  */
 export class Renderer {
   constructor(containerId) {
@@ -16,7 +15,7 @@ export class Renderer {
     this.bgColor = new THREE.Color(0x0c0d12);
     this.scene.background = this.bgColor;
 
-    // Dramatic 3D Perspective Camera (Perfect Distance & Reading Angle)
+    // Dramatic 3D Perspective Camera
     this.camera = new THREE.PerspectiveCamera(
       65,
       window.innerWidth / window.innerHeight,
@@ -33,20 +32,20 @@ export class Renderer {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.container.appendChild(this.renderer.domElement);
 
-    // Custom Post-Processing Shader Pass (Cartoon Neobrutalism & Turbo Speed-Warp)
+    // Custom Post-Processing Shader Pass
     this.shaderPass = new ShaderPass(this.renderer, window.innerWidth, window.innerHeight);
     this.totalTime = 0;
     this.turboAmount = 0;
+    this.cameraBanking = 0;
 
     // Central Polygon Mesh Group
     this.centerGroup = new THREE.Group();
     this.scene.add(this.centerGroup);
     this.centerMesh = null;
     this.centerEdges = null;
+    this._centerSides = 0;
 
-    // GAJOS: campo de cuñas del fondo que une las simetrías del nivel.
-    // Dos tonos alternados del hue activo, con parallax contra el mundo
-    // (giran más lento → ilusión óptica de túnel profundo).
+    // Alternating Background Wedges Group
     this.wedgeGroup = new THREE.Group();
     this.wedgeGroup.position.z = -2.5;
     this.scene.add(this.wedgeGroup);
@@ -60,7 +59,7 @@ export class Renderer {
     this.shakeDecay = 5.0;
     this.shakeOffset = new THREE.Vector3();
 
-    // High-Contrast Flat Lighting (No over-exposed specular glares!)
+    // High-Contrast Flat Ambient Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
     this.scene.add(ambientLight);
 
@@ -72,8 +71,7 @@ export class Renderer {
   }
 
   /**
-   * Gajos del fondo: `sides` cuñas alternadas A/B que salen del centro.
-   * Cacheado por número de lados; los colores se actualizan siempre.
+   * Alternating background wedges matching current polygon sides
    */
   updateWedges(sides, colorA, colorB) {
     if (this._wedgeSides !== sides) {
@@ -85,7 +83,7 @@ export class Renderer {
       const TAU = Math.PI * 2;
       const sector = TAU / sides;
       const R0 = 1.0;
-      const R1 = 60;
+      const R1 = 65;
       for (let i = 0; i < sides; i++) {
         const a0 = i * sector;
         const a1 = (i + 1) * sector;
@@ -107,9 +105,7 @@ export class Renderer {
   }
 
   /**
-   * Polígono central estilo Super Hexagon: relleno casi negro + contorno
-   * de ACENTO brillante. CACHEADO por número de lados — jamás reconstruye
-   * geometría por frame; el color se aplica vía material.
+   * Dynamic Center Polygon matching level sides
    */
   updateCenterPolygon(sides, colorHex, outlineHex = null) {
     if (this._centerSides !== sides) {
@@ -128,7 +124,7 @@ export class Renderer {
       const shape = new THREE.Shape();
       const sectorAngle = (Math.PI * 2) / sides;
       if (sides < 3) {
-        // PUNTO/LÍNEA: el centro es una BARRA (la forma de 2 lados)
+        // Line bar center
         shape.moveTo(-radius, -radius * 0.26);
         shape.lineTo(radius, -radius * 0.26);
         shape.lineTo(radius, radius * 0.26);
@@ -145,7 +141,6 @@ export class Renderer {
         shape.closePath();
       }
 
-      // 100% Plano y Concéntrico (sin sombras ni extrusiones 3D desfasadas)
       const geometry = new THREE.ShapeGeometry(shape);
 
       this.centerMat = new THREE.MeshBasicMaterial({
@@ -156,7 +151,7 @@ export class Renderer {
       this.centerMesh.position.z = 0.05;
       this.centerGroup.add(this.centerMesh);
 
-      // Contorno de acento de alta precisión
+      // Neon outline
       const outlinePts = [];
       for (let i = 0; i <= sides; i++) {
         const a = (i % sides) * sectorAngle;
@@ -177,7 +172,6 @@ export class Renderer {
       }
     }
 
-    // Contorno de acento siempre actualizable (barato)
     if (this.centerOutlineMat && outlineHex !== null) {
       if (typeof outlineHex === 'number') this.centerOutlineMat.color.setHex(outlineHex);
       else if (outlineHex && outlineHex.getHex) this.centerOutlineMat.color.copy(outlineHex);
@@ -192,7 +186,6 @@ export class Renderer {
     this.fovKick = amount;
   }
 
-  /** Flash de fondo al beat: mezcla el acento brevemente */
   triggerBgFlash(color, intensity = 0.055) {
     if (!this._flashColor) this._flashColor = new THREE.Color(0x00ff66);
     if (typeof color === 'number') this._flashColor.setHex(color);
@@ -200,7 +193,7 @@ export class Renderer {
     this._flashIntensity = intensity;
   }
 
-  render(audioBeatPulse = 0, deltaTime = 0.016, worldRotation = 0, turboActive = false) {
+  render(audioBeatPulse = 0, deltaTime = 0.016, worldRotation = 0, turboActive = false, playerTilt = 0) {
     this.totalTime += deltaTime;
     const targetTurbo = turboActive ? 1.0 : 0.0;
     this.turboAmount += (targetTurbo - this.turboAmount) * Math.min(1, deltaTime * 12.0);
@@ -209,17 +202,22 @@ export class Renderer {
       this.fovKick = Math.max(0, this.fovKick - deltaTime * 30.0);
     }
 
-    // NITRO SPEED WARP: FOV surge +20°, Z-pullback, and engine vibration
+    // Dynamic Camera FOV & Distance Surge on Beats & Turbo
     const nitroFov = this.turboAmount * 20.0;
-    const targetFov = 65 + audioBeatPulse * 1.8 + this.fovKick + nitroFov;
+    const targetFov = 65 + audioBeatPulse * 2.2 + this.fovKick + nitroFov;
     this.camera.fov += (targetFov - this.camera.fov) * 0.25;
     this.camera.updateProjectionMatrix();
 
     const nitroZ = this.turboAmount * 0.85;
-    const zSurge = this.baseCameraPos.z - audioBeatPulse * 0.15 + nitroZ;
+    const zSurge = this.baseCameraPos.z - audioBeatPulse * 0.18 + nitroZ;
     this.camera.position.z = zSurge;
 
-    // Nitro Engine Shake
+    // Camera Banking / Roll (Cinematic arcade tilt into turn)
+    const targetBanking = playerTilt * 0.14;
+    this.cameraBanking += (targetBanking - this.cameraBanking) * Math.min(1, deltaTime * 14.0);
+    this.camera.rotation.z = this.cameraBanking;
+
+    // Camera Shake
     const effectiveShake = this.shakeIntensity + (turboActive ? 0.18 : 0);
     if (effectiveShake > 0) {
       this.shakeOffset.set(
@@ -237,7 +235,7 @@ export class Renderer {
     this.camera.position.x = this.baseCameraPos.x + this.shakeOffset.x;
     this.camera.position.y = this.baseCameraPos.y + this.shakeOffset.y;
 
-    // Flash de fondo con decaimiento exponencial
+    // Background flash decay
     if (this._flashIntensity > 0.001) {
       this.scene.background.copy(this.bgColor).lerp(this._flashColor, this._flashIntensity);
       this._flashIntensity *= Math.pow(0.001, deltaTime * 2.4);
@@ -247,15 +245,14 @@ export class Renderer {
 
     this.scene.rotation.z = worldRotation;
 
-    // 100% Geometric Symmetry: la figura central y los gajos de fondo
-    // giran sincronizados 1:1 con el mundo (los vértices coinciden perfectamente).
-    const centerPulse = 1 + audioBeatPulse * 0.045;
+    // Center Polygon Pulse synced with beat
+    const centerPulse = 1 + audioBeatPulse * 0.055;
     this.centerGroup.scale.set(centerPulse, centerPulse, 1);
 
     this.wedgeGroup.rotation.z = 0;
     this.wedgeGroup.scale.set(1, 1, 1);
 
-    // 3D Scene + Cartoon Neobrutalism ShaderPass (Turbo Motion Warp, Chromatic Aberration & Film Grain)
+    // Post-processing ShaderPass
     if (this.shaderPass) {
       this.shaderPass.render(this.scene, this.camera, this.totalTime, this.turboAmount, audioBeatPulse);
     } else {

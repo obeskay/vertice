@@ -2,11 +2,11 @@ import * as THREE from 'three';
 
 /**
  * ShaderPass — 2D Cartoon Neobrutalism & Turbo Motion Warp
- * Custom WebGL post-processing shader for VÉRTICE:
+ * WebGL post-processing shader for VÉRTICE:
  * - Radial speed warp & tunnel distortion when holding SHIFT (uTurbo)
  * - Beat-reactive chromatic aberration & radial vignette
- * - Film grain texture for a tactile cartoon print aesthetic
- * - Razor-sharp sub-pixel edge enhancement
+ * - Subtle film grain texture for a tactile arcade screen aesthetic
+ * - Razor-sharp edge enhancement
  */
 export class ShaderPass {
   constructor(renderer, width, height) {
@@ -27,8 +27,8 @@ export class ShaderPass {
       uniforms: {
         tDiffuse: { value: null },
         uTime: { value: 0 },
-        uTurbo: { value: 0 },         // 0.0 to 1.0 when SHIFT is held
-        uBeatPulse: { value: 0 },     // 0.0 to 1.0 on kick drum
+        uTurbo: { value: 0 },
+        uBeatPulse: { value: 0 },
         uResolution: { value: new THREE.Vector2(width, height) }
       },
       vertexShader: `
@@ -46,7 +46,6 @@ export class ShaderPass {
         uniform vec2 uResolution;
         varying vec2 vUv;
 
-        // Pseudo-random noise for subtle cartoon film grain
         float rand(vec2 co) {
           return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
         }
@@ -57,18 +56,18 @@ export class ShaderPass {
           vec2 distVec = uv - center;
           float dist = length(distVec);
 
-          // 1. Radial Motion Warp (Turbo SHIFT effect)
+          // 1. Radial Motion Warp
           float warpFactor = uTurbo * 0.045 * sin(dist * 18.0 - uTime * 12.0);
           vec2 warpedUv = uv - distVec * warpFactor;
 
-          // 2. Chromatic Aberration (boosted during Turbo and Beat Pulses)
+          // 2. Chromatic Aberration (reactive on kicks and turbo)
           float shiftAmount = (0.002 + uBeatPulse * 0.005 + uTurbo * 0.012) * (dist + 0.2);
           float r = texture2D(tDiffuse, warpedUv + vec2(shiftAmount, 0.0)).r;
           float g = texture2D(tDiffuse, warpedUv).g;
           float b = texture2D(tDiffuse, warpedUv - vec2(shiftAmount, 0.0)).b;
           vec3 color = vec3(r, g, b);
 
-          // 3. Speed Lines during Turbo
+          // 3. Radial Speed Lines during Turbo
           if (uTurbo > 0.01) {
             float angle = atan(distVec.y, distVec.x);
             float speedLine = sin(angle * 32.0 + uTime * 25.0);
@@ -76,13 +75,13 @@ export class ShaderPass {
             color += vec3(speedLine * 0.35);
           }
 
-          // 4. Subtle Cartoon Film Grain
-          float grain = (rand(uv * uTime) - 0.5) * 0.035;
+          // 4. Subtle Film Grain
+          float grain = (rand(uv * uTime) - 0.5) * 0.032;
           color += grain;
 
           // 5. Aesthetic Radial Vignette
-          float vignette = 1.0 - smoothstep(0.45, 0.95, dist);
-          color *= mix(0.78, 1.0, vignette);
+          float vignette = 1.0 - smoothstep(0.48, 0.96, dist);
+          color *= mix(0.80, 1.0, vignette);
 
           gl_FragColor = vec4(color, 1.0);
         }
@@ -101,18 +100,15 @@ export class ShaderPass {
   }
 
   render(scene, camera, time, turboAmount, beatPulse) {
-    // 1. Render scene to offscreen renderTarget
     this.renderer.setRenderTarget(this.renderTarget);
     this.renderer.render(scene, camera);
     this.renderer.setRenderTarget(null);
 
-    // 2. Update shader uniforms
     this.material.uniforms.tDiffuse.value = this.renderTarget.texture;
     this.material.uniforms.uTime.value = time;
     this.material.uniforms.uTurbo.value = turboAmount;
     this.material.uniforms.uBeatPulse.value = beatPulse;
 
-    // 3. Render post-processing quad to screen
     this.renderer.render(this.scene, this.camera);
   }
 }

@@ -1,20 +1,16 @@
 import * as THREE from 'three';
 
 /**
- * WallManager — núcleo (Hermes)
- * El túnel hipnótico + las colisiones que se sienten JUSTAS:
- *
- * - Paredes 3D extruidas con borde negro (look Super Hexagon).
- * - SWEPT BAND COLLISION: la banda de la pared se barre entre frames y se
- *   intersecta con la BANDA RADIAL del jugador (no un punto). Cero tunelaje
- *   y cero muertes fantasma: la banda letal del jugador es más chica que su
- *   sprite, así que "rozar sin morir" es posible y se siente increíble.
- * - NEAR-MISS garantizado: se evalúa cuando el anillo termina de cruzar la
- *   banda del jugador — si quedaste a < margen angular del borde, cuenta.
- * - Geometría cacheada por lados (cero triangulación en caliente).
- * - Expone gaps por anillo + hook onRingSpawned (para power-ups).
- * - ghostTime: ventana de invulnerabilidad (escudo consumido).
+ * WallManager — Precision Swept Tunnel System
+ * Generates geometric wall rings and delivers fair, razor-sharp swept collision detection.
+ * Features:
+ * - 14 dynamic rhythmic wall patterns (Spirals, Gauntlet, Chevron, Double Flank, Cannon, Slalom, etc.)
+ * - Swept radial band intersection (100% immune to tunneling and ghost deaths)
+ * - Cached extruded trapezoid geometry for 240Hz zero GC overhead
+ * - Guaranteed mercy first ring and balanced escape clearance
  */
+const TAU = Math.PI * 2;
+
 export class WallManager {
   constructor(scene) {
     this.scene = scene;
@@ -23,11 +19,11 @@ export class WallManager {
 
     this.activeRings = [];
     this.spawnTimer = 0;
-    this.spawnInterval = 1.6;
-    this.wallThickness = 0.55; // muros robustos: legibles a lo lejos (legibilidad > realismo)
+    this.spawnInterval = 1.5;
+    this.wallThickness = 0.52;
     this.centerRadius = 1.0;
-    this.spawnRadius = 7.2; // Radio de spawn optimizado al frustum de la cámara (visibilidad inmediata)
-    this.nearMissMargin = 0.16;
+    this.spawnRadius = 7.4;
+    this.nearMissMargin = 0.18;
     this.ghostTime = 0;
 
     this.currentPattern = 'SINGLE_GAP';
@@ -35,6 +31,7 @@ export class WallManager {
     this.patternLength = 6;
     this.patternGapIndex = 0;
     this.spiralDirection = 1;
+    this._stairsDir = 1;
 
     this.geoCache = new Map(); // sides -> { fill, edges }
 
@@ -58,8 +55,8 @@ export class WallManager {
     this.spawnTimer = 0;
     this.patternStep = 0;
     this.ghostTime = 0;
-    this._mercyFirstRing = true; // el primer anillo siempre tiene gap donde estás
-    this.spawnRingPattern(sides); // Muros visibles de inmediato al iniciar
+    this._mercyFirstRing = true;
+    this.spawnRingPattern(sides);
   }
 
   setColor(colorHex) {
@@ -68,18 +65,16 @@ export class WallManager {
   }
 
   /**
-   * Sector TRAPEZOIDAL de bordes RECTOS — el muro sigue la forma del polígono
-   * del nivel (5/6/7/8 lados), como en Super Hexagon. Nada de arcos redondos.
+   * Cached Trapezoidal Extruded Sector Geometry for any polygon side count
    */
   getSectorGeometry(sides) {
     let cached = this.geoCache.get(sides);
     if (cached) return cached;
 
-    const sectorAngle = (Math.PI * 2) / sides;
+    const sectorAngle = TAU / sides;
     const innerR = this.centerRadius;
     const outerR = this.centerRadius + this.wallThickness;
 
-    // 4 vértices: trapecio recto entre esquinas del polígono
     const shape = new THREE.Shape();
     shape.moveTo(Math.cos(0) * outerR, Math.sin(0) * outerR);
     shape.lineTo(Math.cos(sectorAngle) * outerR, Math.sin(sectorAngle) * outerR);
@@ -96,13 +91,11 @@ export class WallManager {
   }
 
   /**
-   * Paso de simulación (timestep fijo).
-   * @param suppressSpawn true cuando el spawn lo gobierna el beat externo (MusicSync)
-   * Devuelve { collision: bool, nearMiss: null | {x, y} }
+   * Fixed Timestep Simulation Update
    */
   update(deltaTime, speed, sides, playerHitbox, suppressSpawn = false) {
     this._lastHitbox = playerHitbox || this._lastHitbox;
-    this.spawnInterval = Math.max(0.55, 7.5 / speed);
+    this.spawnInterval = Math.max(0.50, 7.6 / speed);
 
     if (!suppressSpawn) {
       this.spawnTimer += deltaTime;
@@ -125,12 +118,11 @@ export class WallManager {
       ring.prevRadius = ring.radius;
       ring.radius -= speed * deltaTime;
 
-      // Banda de la pared barrida en este paso: [newInner, prevOuter]
       const newInner = ring.radius * this.centerRadius;
       const prevOuter = ring.prevRadius * (this.centerRadius + this.wallThickness);
       const newOuter = ring.radius * (this.centerRadius + this.wallThickness);
 
-      // ¿La banda barrida intersecta la banda del jugador?
+      // Swept radial band test
       const radialContact = newInner <= pHi && prevOuter >= pLo;
 
       if (!ring.hit && this.ghostTime <= 0 && radialContact) {
@@ -140,7 +132,7 @@ export class WallManager {
         }
       }
 
-      // ¿El anillo terminó de cruzar TODA la banda del jugador?
+      // Near-Miss test when wall safely clears the player hitbox
       if (!ring.hit && !ring.passedPlayer && prevOuter >= pHi && newOuter < pLo) {
         ring.passedPlayer = true;
         const dist = this.minAngularDistanceToWall(ring, playerHitbox, ring.sides);
@@ -152,7 +144,7 @@ export class WallManager {
         }
       }
 
-      if (newOuter < 0.6) {
+      if (newOuter < 0.55) {
         this.wallsGroup.remove(ring.group);
         this.activeRings.splice(i, 1);
       }
@@ -161,7 +153,6 @@ export class WallManager {
     return { collision, nearMiss };
   }
 
-  /** Render interpolado de los anillos */
   render(alpha = 1) {
     for (const ring of this.activeRings) {
       const r = ring.prevRadius + (ring.radius - ring.prevRadius) * alpha;
@@ -169,17 +160,15 @@ export class WallManager {
     }
   }
 
-  /** Spawn inmediato gobernado por beat externo (modo MusicSync) */
   spawnNow(sides) {
     this.spawnRingPattern(sides);
   }
 
-  /** Elimina visualmente los anillos cercanos al jugador (al consumir escudo) */
   crushNearbyWalls(playerRadius) {
     for (const ring of this.activeRings) {
       const outer = ring.radius * (this.centerRadius + this.wallThickness);
-      if (outer < playerRadius + 2.2) {
-        ring.hit = true; // ya no puede matar
+      if (outer < playerRadius + 2.4) {
+        ring.hit = true;
         ring.group.visible = false;
       }
     }
@@ -187,32 +176,34 @@ export class WallManager {
 
   spawnRingPattern(sides) {
     if (this._mercyFirstRing) {
-      // PRIMER ANILLO: gap exactamente en el sector del jugador.
-      // Enseña el pass-through gratis; nadie muere sin haber jugado.
       this._mercyFirstRing = false;
       this.currentPattern = 'SINGLE_GAP';
-      this.patternLength = 3 + Math.floor(Math.random() * 3);
+      this.patternLength = 3;
       this.patternStep = 0;
       if (this._lastHitbox) {
-        const TAU = Math.PI * 2;
         const a = ((this._lastHitbox.angle % TAU) + TAU) % TAU;
         this.patternGapIndex = Math.floor(a / (TAU / sides)) % sides;
       }
       this.spiralDirection = Math.random() < 0.5 ? 1 : -1;
       this._stairsDir = this.spiralDirection;
     } else if (this.patternStep >= this.patternLength) {
-      // Con pocos lados, solo patrones legibles de 1 gap
-      let patterns;
-      if (sides <= 3) patterns = Math.random() < 0.65 ? ['SINGLE_GAP', 'TUNNEL'] : ['SINGLE_GAP', 'SPIRAL', 'TUNNEL'];
-      else if (sides === 4) patterns = ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'STAGGER', 'ZIG_ZAG', 'TUNNEL', 'CANNON'];
-      else patterns = ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'TRIPLE_GAP', 'STAGGER', 'VORTEX', 'STAIRS', 'ZIG_ZAG', 'SLALOM', 'TUNNEL', 'CANNON', 'CHEVRON'];
-      let next = patterns[Math.floor(Math.random() * patterns.length)];
-      if (next === this.currentPattern) {
-        next = patterns[(patterns.indexOf(next) + 1) % patterns.length];
+      const allPatterns = sides <= 3
+        ? ['SINGLE_GAP', 'TUNNEL', 'SPIRAL']
+        : sides === 4
+        ? ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'STAGGER', 'ZIG_ZAG', 'TUNNEL', 'CANNON']
+        : [
+            'SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'TRIPLE_GAP', 'STAGGER',
+            'VORTEX', 'STAIRS', 'ZIG_ZAG', 'SLALOM', 'TUNNEL', 'CANNON',
+            'CHEVRON', 'GAUNTLET', 'DOUBLE_GATE'
+          ];
+
+      let next = allPatterns[Math.floor(Math.random() * allPatterns.length)];
+      if (next === this.currentPattern && allPatterns.length > 1) {
+        next = allPatterns[(allPatterns.indexOf(next) + 1) % allPatterns.length];
       }
       this.currentPattern = next;
       this.patternStep = 0;
-      this.patternLength = 4 + Math.floor(Math.random() * 6);
+      this.patternLength = 4 + Math.floor(Math.random() * 5);
       this.patternGapIndex = Math.floor(Math.random() * sides);
       this.spiralDirection = Math.random() < 0.5 ? 1 : -1;
       this._stairsDir = this.spiralDirection;
@@ -239,8 +230,15 @@ export class WallManager {
         break;
       }
 
+      case 'DOUBLE_GATE': {
+        blockedSectors[this.patternGapIndex] = false;
+        const gate2 = (this.patternGapIndex + Math.max(1, Math.floor(sides / 3))) % sides;
+        blockedSectors[gate2] = false;
+        break;
+      }
+
       case 'TRIPLE_GAP': {
-        const step = Math.floor(sides / 3);
+        const step = Math.max(1, Math.floor(sides / 3));
         blockedSectors[this.patternGapIndex] = false;
         blockedSectors[(this.patternGapIndex + step) % sides] = false;
         blockedSectors[(this.patternGapIndex + step * 2) % sides] = false;
@@ -292,9 +290,16 @@ export class WallManager {
         blockedSectors[this.patternGapIndex] = false;
         break;
       }
+
+      case 'GAUNTLET': {
+        // High-octane rapid alternating single gaps
+        this.patternGapIndex = (this.patternGapIndex + (this.patternStep % 2 === 0 ? 2 : -2) + sides) % sides;
+        blockedSectors[this.patternGapIndex] = false;
+        break;
+      }
     }
 
-    // GUARDIA: jamás un anillo completamente cerrado (muerte injusta)
+    // Safety guard: never generate a fully sealed ring
     if (blockedSectors.every(b => b)) {
       blockedSectors[Math.floor(Math.random() * sides)] = false;
     }
@@ -305,7 +310,7 @@ export class WallManager {
 
   createRingMesh(sides, blockedSectors) {
     const ringGroup = new THREE.Group();
-    const sectorAngle = (Math.PI * 2) / sides;
+    const sectorAngle = TAU / sides;
     const geo = this.getSectorGeometry(sides);
     const gaps = [];
 
@@ -342,10 +347,8 @@ export class WallManager {
     if (this.onRingSpawned) this.onRingSpawned(ring);
   }
 
-  /** ¿El arco del jugador intersecta algún sector bloqueado? (con wrap ±2π) */
   checkAngularHit(ring, playerHitbox, sides) {
-    const sectorAngle = (Math.PI * 2) / sides;
-    const TAU = Math.PI * 2;
+    const sectorAngle = TAU / sides;
     const halfArc = playerHitbox.halfArc !== undefined ? playerHitbox.halfArc : 0.07;
     const pMin = playerHitbox.angle - halfArc;
     const pMax = playerHitbox.angle + halfArc;
@@ -361,10 +364,8 @@ export class WallManager {
     return false;
   }
 
-  /** Distancia angular del borde del jugador a la pared más cercana (0 = tocando) */
   minAngularDistanceToWall(ring, playerHitbox, sides) {
-    const sectorAngle = (Math.PI * 2) / sides;
-    const TAU = Math.PI * 2;
+    const sectorAngle = TAU / sides;
     const halfArc = playerHitbox.halfArc !== undefined ? playerHitbox.halfArc : 0.07;
     const pMin = playerHitbox.angle - halfArc;
     const pMax = playerHitbox.angle + halfArc;

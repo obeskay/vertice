@@ -1,15 +1,30 @@
 /**
  * ScoreSystem
- * Tiempo de supervivencia con precisión de centésimas, near-misses,
- * y persistencia en localStorage SOLO al morir (nunca por frame).
+ * Survival time tracking, per-mode best scores, near-miss stats and leaderboards.
+ * Persists to localStorage only on run commit (zero runtime GC allocation).
  */
 export class ScoreSystem {
   constructor() {
+    this.mode = 'NORMAL';
     this.currentTime = 0;
-    this.bestTime = this.loadBestScore();
+    this.bestTimes = this.loadAllBestScores();
     this.rankScores = this.loadRankScores();
     this.isNewRecord = false;
     this.nearMisses = 0;
+  }
+
+  setMode(mode = 'NORMAL') {
+    this.mode = mode;
+    this.currentTime = 0;
+    this.isNewRecord = false;
+  }
+
+  get bestTime() {
+    return this.bestTimes[this.mode] || 0.0;
+  }
+
+  set bestTime(val) {
+    this.bestTimes[this.mode] = val;
   }
 
   reset() {
@@ -31,6 +46,21 @@ export class ScoreSystem {
   }
 
   getGrade(seconds = this.currentTime) {
+    if (this.mode === 'EXTREMO') {
+      if (seconds >= 40) return { grade: 'S+', title: 'DIVINIDAD' };
+      if (seconds >= 25) return { grade: 'S', title: 'IMPARABLE' };
+      if (seconds >= 15) return { grade: 'A', title: 'REFLEJOS LUZ' };
+      if (seconds >= 8)  return { grade: 'B', title: 'SOBREVIVIENTE' };
+      return { grade: 'C', title: 'INICIADO' };
+    }
+    if (this.mode === 'HIPER') {
+      if (seconds >= 60) return { grade: 'S+', title: 'HIPER DIOS' };
+      if (seconds >= 40) return { grade: 'S', title: 'MAESTRO HIPER' };
+      if (seconds >= 25) return { grade: 'A', title: 'AS DE ACERO' };
+      if (seconds >= 15) return { grade: 'B', title: 'PILOTO VÉRTICE' };
+      return { grade: 'C', title: 'APRENDIZ' };
+    }
+    // Normal Mode
     if (seconds >= 80) return { grade: 'S+', title: 'DIOS VÉRTICE' };
     if (seconds >= 55) return { grade: 'S', title: 'LEYENDA' };
     if (seconds >= 35) return { grade: 'A', title: 'AS DE ACERO' };
@@ -39,15 +69,15 @@ export class ScoreSystem {
     return { grade: 'D', title: 'NOVATO' };
   }
 
-  /** Persiste el récord, estadísticas por rank y leaderboard (llamar al morir) */
   commit(rankName = '') {
     if (this.isNewRecord) {
-      this.saveBestScore(this.bestTime);
+      this.saveBestScore(this.mode, this.bestTime);
     }
     if (rankName) {
-      const currentRankBest = this.rankScores[rankName] || 0;
+      const key = `${this.mode}_${rankName}`;
+      const currentRankBest = this.rankScores[key] || 0;
       if (this.currentTime > currentRankBest) {
-        this.rankScores[rankName] = this.currentTime;
+        this.rankScores[key] = this.currentTime;
         this.saveRankScores(this.rankScores);
       }
     }
@@ -56,25 +86,27 @@ export class ScoreSystem {
 
   recordRun(rankName = '') {
     try {
-      const leaderboard = this.loadLeaderboard();
+      const leaderboardKey = `vertice_leaderboard_${this.mode}`;
+      const leaderboard = this.loadLeaderboard(leaderboardKey);
       const runInfo = {
         time: this.currentTime,
         formattedTime: this.getFormattedCurrentTime(),
         grade: this.getGrade().grade,
         rankName,
         nearMisses: this.nearMisses,
+        mode: this.mode,
         date: new Date().toLocaleDateString()
       };
       leaderboard.push(runInfo);
       leaderboard.sort((a, b) => b.time - a.time);
       const top5 = leaderboard.slice(0, 5);
-      localStorage.setItem('vertice_leaderboard', JSON.stringify(top5));
+      localStorage.setItem(leaderboardKey, JSON.stringify(top5));
     } catch (e) {}
   }
 
-  loadLeaderboard() {
+  loadLeaderboard(key = `vertice_leaderboard_${this.mode}`) {
     try {
-      const saved = localStorage.getItem('vertice_leaderboard');
+      const saved = localStorage.getItem(key);
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
@@ -93,22 +125,40 @@ export class ScoreSystem {
     return this.formatTime(this.currentTime);
   }
 
-  getFormattedBestTime() {
-    return this.formatTime(this.bestTime);
+  getFormattedBestTime(mode = this.mode) {
+    return this.formatTime(this.bestTimes[mode] || 0.0);
   }
 
-  loadBestScore() {
+  loadAllBestScores() {
+    const modes = ['NORMAL', 'HIPER', 'EXTREMO', 'ZEN'];
+    const scores = {};
+    modes.forEach(m => {
+      scores[m] = this.loadBestScore(m);
+    });
+    return scores;
+  }
+
+  loadBestScore(mode = 'NORMAL') {
     try {
-      const saved = localStorage.getItem('vertice_best_score');
-      return saved ? parseFloat(saved) : 0.0;
+      const saved = localStorage.getItem(`vertice_best_${mode}`);
+      if (saved) return parseFloat(saved);
+      // Legacy fallback
+      if (mode === 'NORMAL') {
+        const legacy = localStorage.getItem('vertice_best_score');
+        return legacy ? parseFloat(legacy) : 0.0;
+      }
+      return 0.0;
     } catch (e) {
       return 0.0;
     }
   }
 
-  saveBestScore(score) {
+  saveBestScore(mode, score) {
     try {
-      localStorage.setItem('vertice_best_score', score.toString());
+      localStorage.setItem(`vertice_best_${mode}`, score.toString());
+      if (mode === 'NORMAL') {
+        localStorage.setItem('vertice_best_score', score.toString());
+      }
     } catch (e) {}
   }
 

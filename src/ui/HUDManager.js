@@ -1,7 +1,8 @@
 /**
  * HUDManager
- * Neobrutalist UI controller for VÉRTICE.
- * Fully defensive against missing DOM elements to prevent TypeError exceptions.
+ * Neobrutalist UI Controller for VÉRTICE.
+ * Handles mode selection, leaderboard display, voice/control toggles,
+ * stats presentation and touch interactions.
  */
 export class HUDManager {
   constructor(gameCallbacks) {
@@ -16,38 +17,46 @@ export class HUDManager {
     this.centerMessage = document.getElementById('center-message');
     this.messageSubtitle = document.getElementById('message-subtitle');
 
-    // Near-Miss Toast (matches both ID naming conventions)
-    this.nearmissToast = document.getElementById('nearmiss-toast') || document.getElementById('near-miss-indicator');
-    this.nearmissText = document.getElementById('nearmiss-text') || document.getElementById('near-miss-text');
+    // Near-Miss Toast
+    this.nearmissToast = document.getElementById('near-miss-indicator');
+    this.nearmissText = document.getElementById('near-miss-text');
 
     // Overlays
     this.startOverlay = document.getElementById('start-overlay');
-    this.gameoverOverlay = document.getElementById('gameover-overlay') || document.getElementById('start-overlay');
     this.pauseOverlay = document.getElementById('pause-overlay');
+    this.leaderboardOverlay = document.getElementById('leaderboard-overlay');
 
     // Action Buttons & Badges
     this.turboPill = document.getElementById('turbo-pill');
     this.comboPill = document.getElementById('combo-pill');
     this.comboDisplay = document.getElementById('combo-display');
     this.btnStart = document.getElementById('btn-start');
-    this.btnRetry = document.getElementById('btn-retry') || document.getElementById('btn-start');
     this.btnResume = document.getElementById('btn-resume');
     this.btnPauseRestart = document.getElementById('btn-pause-restart');
     this.btnAudioToggle = document.getElementById('btn-audio-toggle');
+    this.btnVoiceToggle = document.getElementById('btn-voice-toggle');
+    this.btnControlToggle = document.getElementById('btn-control-toggle');
     this.btnPaletteToggle = document.getElementById('btn-palette-toggle');
     this.btnSyncToggle = document.getElementById('btn-sync-toggle');
+    this.btnLeaderboardToggle = document.getElementById('btn-leaderboard-toggle');
+    this.btnCloseLeaderboard = document.getElementById('btn-close-leaderboard');
     this.syncPill = document.getElementById('sync-pill');
     this.bpmDisplay = document.getElementById('bpm-display');
+
+    // Mode Selector Buttons
+    this.modeButtons = document.querySelectorAll('.btn-mode');
 
     // Final Stats Elements
     this.statsSummary = document.getElementById('game-stats-summary');
     this.recordBadge = document.getElementById('record-badge');
     this.finalTime = document.getElementById('final-time');
-    this.finalBest = document.getElementById('final-best');
-    this.finalNearmiss = document.getElementById('final-nearmiss') || document.getElementById('final-near-misses');
-    this.finalRank = document.getElementById('final-rank');
+    this.finalNearmiss = document.getElementById('final-near-misses');
     this.finalGrade = document.getElementById('final-grade');
     this.finalTitle = document.getElementById('final-title');
+
+    // Leaderboard List
+    this.leaderboardList = document.getElementById('leaderboard-list');
+    this.lbTitle = document.getElementById('lb-title');
 
     // Touch Controls
     this.touchLeft = document.getElementById('touch-left');
@@ -66,15 +75,20 @@ export class HUDManager {
   }
 
   setupListeners() {
+    // Mode Buttons
+    this.modeButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const mode = e.target.getAttribute('data-mode');
+        this.setModeActive(mode);
+        if (this.callbacks.onSelectMode) {
+          const best = this.callbacks.onSelectMode(mode);
+          this.updateBestScore(best);
+        }
+      });
+    });
+
     if (this.btnStart) {
       this.btnStart.addEventListener('click', () => {
-        this.hideAllOverlays();
-        this.callbacks.onStartGame();
-      });
-    }
-
-    if (this.btnRetry && this.btnRetry !== this.btnStart) {
-      this.btnRetry.addEventListener('click', () => {
         this.hideAllOverlays();
         this.callbacks.onStartGame();
       });
@@ -100,6 +114,20 @@ export class HUDManager {
       });
     }
 
+    if (this.btnVoiceToggle && this.callbacks.onToggleVoice) {
+      this.btnVoiceToggle.addEventListener('click', () => {
+        const voiceOn = this.callbacks.onToggleVoice();
+        this.btnVoiceToggle.innerText = `VOZ: ${voiceOn ? 'ON' : 'OFF'}`;
+      });
+    }
+
+    if (this.btnControlToggle && this.callbacks.onToggleControl) {
+      this.btnControlToggle.addEventListener('click', () => {
+        const mode = this.callbacks.onToggleControl();
+        this.btnControlToggle.innerText = `CTRL: ${mode}`;
+      });
+    }
+
     if (this.btnPaletteToggle) {
       this.btnPaletteToggle.addEventListener('click', () => {
         const paletteName = this.callbacks.onTogglePalette();
@@ -121,6 +149,20 @@ export class HUDManager {
       });
     }
 
+    if (this.btnLeaderboardToggle && this.callbacks.onGetLeaderboard) {
+      this.btnLeaderboardToggle.addEventListener('click', () => {
+        const { mode, runs } = this.callbacks.onGetLeaderboard();
+        this.showLeaderboard(mode, runs);
+      });
+    }
+
+    if (this.btnCloseLeaderboard) {
+      this.btnCloseLeaderboard.addEventListener('click', () => {
+        if (this.leaderboardOverlay) this.leaderboardOverlay.classList.add('hidden');
+      });
+    }
+
+    // Touch controls with multi-touch turbo
     if (this.touchControls) {
       const activePointers = new Map();
 
@@ -156,6 +198,35 @@ export class HUDManager {
         }
       });
     }
+  }
+
+  setModeActive(mode) {
+    this.modeButtons.forEach(b => {
+      b.classList.toggle('active', b.getAttribute('data-mode') === mode);
+    });
+  }
+
+  showLeaderboard(mode, runs = []) {
+    if (this.lbTitle) this.lbTitle.innerText = `RÉCORDS — ${mode}`;
+    if (this.leaderboardList) {
+      this.leaderboardList.innerHTML = '';
+      if (runs.length === 0) {
+        this.leaderboardList.innerHTML = '<div style="padding: 1rem; color: #777;">Aún no hay récords en este modo.</div>';
+      } else {
+        runs.forEach((r, idx) => {
+          const row = document.createElement('div');
+          row.className = 'leaderboard-row';
+          row.innerHTML = `
+            <span class="leaderboard-rank">#${idx + 1}</span>
+            <span class="leaderboard-time">${r.formattedTime || r.time}</span>
+            <span class="leaderboard-grade">${r.grade || 'A'}</span>
+            <span style="font-size:0.75rem; color:#666;">${r.nearMisses || 0} rozes</span>
+          `;
+          this.leaderboardList.appendChild(row);
+        });
+      }
+    }
+    if (this.leaderboardOverlay) this.leaderboardOverlay.classList.remove('hidden');
   }
 
   updateBpm(bpm) {
@@ -219,10 +290,6 @@ export class HUDManager {
   }
 
   showNearMiss(count) {
-    this.triggerNearMissPop(count);
-  }
-
-  triggerNearMissPop(count) {
     if (count !== undefined) {
       this.nearmissChain = count;
     } else {
@@ -254,16 +321,14 @@ export class HUDManager {
 
   showGameOver(finalTime, bestTime, isNewRecord, nearMisses = 0, rankName = '', gradeObj = { grade: 'C', title: 'PILOTO' }) {
     if (this.finalTime) this.finalTime.innerText = finalTime;
-    if (this.finalBest) this.finalBest.innerText = bestTime;
     if (this.finalNearmiss) this.finalNearmiss.innerText = nearMisses.toString();
-    if (this.finalRank) this.finalRank.innerText = rankName;
     if (this.finalGrade) this.finalGrade.innerText = gradeObj.grade || 'C';
     if (this.finalTitle) this.finalTitle.innerText = gradeObj.title || 'PILOTO';
     if (this.recordBadge) this.recordBadge.classList.toggle('hidden', !isNewRecord);
 
     if (this.statsSummary) this.statsSummary.classList.remove('hidden');
     if (this.btnStart) this.btnStart.innerText = 'REINTENTAR';
-    if (this.gameoverOverlay) this.gameoverOverlay.classList.remove('hidden');
+    if (this.startOverlay) this.startOverlay.classList.remove('hidden');
   }
 
   showPause(show) {
@@ -274,14 +339,8 @@ export class HUDManager {
 
   hideAllOverlays() {
     if (this.startOverlay) this.startOverlay.classList.add('hidden');
-    if (this.gameoverOverlay && this.gameoverOverlay !== this.startOverlay) {
-      this.gameoverOverlay.classList.add('hidden');
-    }
     if (this.pauseOverlay) this.pauseOverlay.classList.add('hidden');
+    if (this.leaderboardOverlay) this.leaderboardOverlay.classList.add('hidden');
     if (this.statsSummary) this.statsSummary.classList.add('hidden');
-  }
-
-  hideStartOverlay() {
-    this.hideAllOverlays();
   }
 }
