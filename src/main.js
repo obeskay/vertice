@@ -16,7 +16,7 @@ import { HUDManager } from './ui/HUDManager.js';
  * Features:
  * - 240Hz Fixed-Timestep Simulation with Sub-Pixel Interpolated Rendering
  * - Arcade 360° Orbital Control with Dynamic Banking Tilt
- * - Darksynth Synthesizer with Sidechain Compression & Dynamic Filters
+ * - Chiptune / Darksynth Procedural Synthesizer with Dynamic Layering
  * - Iconic Robotic Voice Announcer ("BEGIN!", "HEXAGON!", "GAME OVER!")
  * - 4 Game Modes (Normal, Hiper, Extremo, Zen)
  * - Swept Radial Collision & Guaranteed Fair Patterns
@@ -83,6 +83,7 @@ class Game {
       onSelectMode: (mode) => {
         this.level.setMode(mode);
         this.score.setMode(mode);
+        this.audio.setMode(mode);
         return this.score.getFormattedBestTime(mode);
       },
       onToggleAudio: () => {
@@ -128,6 +129,13 @@ class Game {
         };
       },
       onTouchInput: (dir, pointerCount = 1) => {
+        if (this.state === 'MENU' || this.state === 'GAMEOVER') {
+          if (dir !== 0) {
+            this.hud.hideAllOverlays();
+            this.startGame();
+          }
+          return;
+        }
         this.touchInputDir = -dir;
         this.touchTurbo = pointerCount >= 2;
       }
@@ -145,8 +153,22 @@ class Game {
 
   setupKeyboard() {
     window.addEventListener('keydown', (e) => {
-      if (['ArrowLeft', 'ArrowRight', 'Space', 'KeyA', 'KeyD'].includes(e.code)) {
+      if (['ArrowLeft', 'ArrowRight', 'Space', 'KeyA', 'KeyD', 'KeyR', 'KeyW', 'ArrowUp', 'ArrowDown'].includes(e.code)) {
         if (this.state === 'PLAYING') e.preventDefault();
+      }
+
+      // If in MENU or GAMEOVER, Left/Right arrow keys cycle difficulty mode!
+      if (this.state === 'MENU' || this.state === 'GAMEOVER') {
+        if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+          this.hud.cycleMode(-1);
+          this.audio.playUiClick();
+          return;
+        }
+        if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+          this.hud.cycleMode(1);
+          this.audio.playUiClick();
+          return;
+        }
       }
 
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') { this.keys.left = true; this._disengageMouse(); }
@@ -234,6 +256,7 @@ class Game {
     this.timeScale = 1;
     this.deathElapsed = 0;
 
+    this.audio.setMode(this.level.mode);
     this.audio.start();
     this.voice.announceStart();
 
@@ -398,8 +421,6 @@ class Game {
       this._lastSides = levelStatus.sides;
       this.player.setLanes(levelStatus.sides);
     }
-
-    this.audio.setTempo(140 + levelStatus.speed * 4.5);
 
     const inputDir = this.getInputDir();
     this.lastInputDir = inputDir;

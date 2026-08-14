@@ -21,20 +21,21 @@ export class Player {
     // Control Mode: 'ARCADE' (continuous) | 'LANES' (discrete steps)
     this.controlMode = 'ARCADE';
 
-    // Arcade movement constants
-    this.baseSpeed = 10.5;   // rad/s (instant, fluid arcade response)
-    this.turboSpeed = 17.2;  // rad/s
-    this.acceleration = 120.0;
-    this.damping = 40.0;
+    // Arcade movement tuning (snappy, highly responsive, zero deadzone)
+    this.baseSpeed = 11.0;   // rad/s (instant, fluid arcade response)
+    this.turboSpeed = 18.0;  // rad/s
+    this.acceleration = 140.0;
+    this.damping = 48.0;
 
     // Lanes mode variables
     this.lanes = 6;
     this.targetLane = 0;
     this.setLanes(6);
 
-    this.halfArc = 0.072;
-    this.hitBottom = 1.27;
-    this.hitTop = 1.43;
+    // Hitbox calibration (fair, tight hitbox for exhilarating near-misses)
+    this.halfArc = 0.068;
+    this.hitBottom = 1.28;
+    this.hitTop = 1.42;
 
     this.tilt = 0;
 
@@ -42,10 +43,10 @@ export class Player {
 
     // 1. Sleek Precision Arrow Ship
     const shape = new THREE.Shape();
-    shape.moveTo(0, 0.17);
-    shape.lineTo(-0.115, -0.105);
-    shape.lineTo(0, -0.05); // Subtle aerodynamic notch
-    shape.lineTo(0.115, -0.105);
+    shape.moveTo(0, 0.18);
+    shape.lineTo(-0.115, -0.10);
+    shape.lineTo(0, -0.045); // Aerodynamic notch
+    shape.lineTo(0.115, -0.10);
     shape.closePath();
 
     const geometry = new THREE.ShapeGeometry(shape);
@@ -56,20 +57,20 @@ export class Player {
     this.shipMesh = new THREE.Mesh(geometry, this.material);
     this.meshGroup.add(this.shipMesh);
 
-    // Thick Neobrutalist Black Border
+    // Neobrutalist Black Border
     const edgesGeo = new THREE.EdgesGeometry(geometry);
     this.shipEdges = new THREE.LineSegments(
       edgesGeo,
       new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 })
     );
-    this.shipEdges.scale.set(1.08, 1.08, 1.08);
+    this.shipEdges.scale.set(1.06, 1.06, 1.06);
     this.meshGroup.add(this.shipEdges);
 
     // 2. Thruster Flame / Jet Exhaust Flare
     const thrusterShape = new THREE.Shape();
-    thrusterShape.moveTo(0, -0.05);
-    thrusterShape.lineTo(-0.075, -0.26);
-    thrusterShape.lineTo(0.075, -0.26);
+    thrusterShape.moveTo(0, -0.045);
+    thrusterShape.lineTo(-0.07, -0.28);
+    thrusterShape.lineTo(0.07, -0.28);
     thrusterShape.closePath();
     this.thrusterMat = new THREE.MeshBasicMaterial({
       color: 0x00ff66,
@@ -164,8 +165,8 @@ export class Player {
         let diff = pointerAngle - this.angle;
         while (diff > Math.PI) diff -= TAU;
         while (diff < -Math.PI) diff += TAU;
-        const targetSpeed = Math.max(-this.turboSpeed, Math.min(this.turboSpeed, diff * 28.0));
-        this.angularVel += (targetSpeed - this.angularVel) * Math.min(1, deltaTime * 35.0);
+        const targetSpeed = Math.max(-this.turboSpeed, Math.min(this.turboSpeed, diff * 32.0));
+        this.angularVel += (targetSpeed - this.angularVel) * Math.min(1, deltaTime * 40.0);
         this.angle = ((this.angle + this.angularVel * deltaTime) % TAU + TAU) % TAU;
         if (Math.abs(diff) < 0.002) {
           this.angle = pointerAngle;
@@ -196,7 +197,7 @@ export class Player {
       while (diff > Math.PI) diff -= TAU;
       while (diff < -Math.PI) diff += TAU;
 
-      const stiffness = turbo ? 60 : 28;
+      const stiffness = turbo ? 65 : 32;
       this.angularVel = diff * stiffness;
       this.angle = (this.angle + this.angularVel * deltaTime) % TAU;
       this.angle = (this.angle + TAU) % TAU;
@@ -224,33 +225,33 @@ export class Player {
     this.meshGroup.rotation.z = renderAngle - Math.PI / 2;
 
     // Banking tilt: Ship rolls into the turn
-    const speedNorm = Math.max(-1, Math.min(1, this.angularVel / (this.baseSpeed * 0.9)));
-    const targetTilt = -speedNorm * 0.38;
-    this.tilt += (targetTilt - this.tilt) * Math.min(1, dt * 22);
+    const speedNorm = Math.max(-1, Math.min(1, this.angularVel / (this.baseSpeed * 0.95)));
+    const targetTilt = -speedNorm * 0.40;
+    this.tilt += (targetTilt - this.tilt) * Math.min(1, dt * 25);
     this.shipMesh.rotation.z = this.tilt;
     this.shipEdges.rotation.z = this.tilt;
 
     // Turbo aerodynamic elongation
-    const stretch = this.turboActive ? 1.45 : (Math.abs(this.angularVel) > 1 ? 1.12 : 1.0);
+    const stretch = this.turboActive ? 1.40 : (Math.abs(this.angularVel) > 1 ? 1.10 : 1.0);
     const cur = this.shipMesh.scale.x;
-    const next = cur + (stretch - cur) * Math.min(1, dt * 14);
+    const next = cur + (stretch - cur) * Math.min(1, dt * 16);
     this.shipMesh.scale.set(next, 1, 1);
-    this.shipEdges.scale.set(1.08 * next, 1.08, 1.08);
+    this.shipEdges.scale.set(1.06 * next, 1.06, 1.06);
 
     // Jet Thruster Flare
     const isMoving = Math.abs(this.angularVel) > 0.5 || this.turboActive;
     if (isMoving) {
-      const baseOpacity = this.turboActive ? 0.95 : 0.65;
+      const baseOpacity = this.turboActive ? 0.95 : 0.70;
       this.thrusterMat.opacity = baseOpacity + (Math.random() - 0.5) * 0.2;
-      const flareScale = this.turboActive ? 1.6 : 1.1;
+      const flareScale = this.turboActive ? 1.65 : 1.15;
       this.thrusterMesh.scale.set(flareScale * (1 + Math.random() * 0.2), flareScale * (1 + Math.random() * 0.3), 1);
     } else {
-      this.thrusterMat.opacity = Math.max(0, this.thrusterMat.opacity - dt * 16);
+      this.thrusterMat.opacity = Math.max(0, this.thrusterMat.opacity - dt * 18);
     }
 
     if (this.shieldMesh.visible) {
-      this.shieldMesh.rotation.z += dt * 3.5;
-      const s = 1.0 + Math.sin(performance.now() * 0.01) * 0.08;
+      this.shieldMesh.rotation.z += dt * 4.0;
+      const s = 1.0 + Math.sin(performance.now() * 0.012) * 0.09;
       this.shieldMesh.scale.set(s, s, 1);
     }
   }

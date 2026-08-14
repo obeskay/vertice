@@ -4,7 +4,7 @@ import * as THREE from 'three';
  * WallManager — Precision Swept Tunnel System
  * Generates geometric wall rings and delivers fair, razor-sharp swept collision detection.
  * Features:
- * - 14 dynamic rhythmic wall patterns (Spirals, Gauntlet, Chevron, Double Flank, Cannon, Slalom, etc.)
+ * - 16 dynamic rhythmic wall patterns (Spirals, Gauntlet, Chevron, Double Flank, Cannon, Slalom, Labyrinth, Hyper Ring, etc.)
  * - Swept radial band intersection (100% immune to tunneling and ghost deaths)
  * - Cached extruded trapezoid geometry for 240Hz zero GC overhead
  * - Guaranteed mercy first ring and balanced escape clearance
@@ -19,11 +19,11 @@ export class WallManager {
 
     this.activeRings = [];
     this.spawnTimer = 0;
-    this.spawnInterval = 1.5;
+    this.spawnInterval = 1.4;
     this.wallThickness = 0.52;
     this.centerRadius = 1.0;
-    this.spawnRadius = 7.4;
-    this.nearMissMargin = 0.18;
+    this.spawnRadius = 7.6;
+    this.nearMissMargin = 0.19;
     this.ghostTime = 0;
 
     this.currentPattern = 'SINGLE_GAP';
@@ -95,7 +95,7 @@ export class WallManager {
    */
   update(deltaTime, speed, sides, playerHitbox, suppressSpawn = false) {
     this._lastHitbox = playerHitbox || this._lastHitbox;
-    this.spawnInterval = Math.max(0.50, 7.6 / speed);
+    this.spawnInterval = Math.max(0.48, 7.8 / speed);
 
     if (!suppressSpawn) {
       this.spawnTimer += deltaTime;
@@ -144,7 +144,7 @@ export class WallManager {
         }
       }
 
-      if (newOuter < 0.55) {
+      if (newOuter < 0.52) {
         this.wallsGroup.remove(ring.group);
         this.activeRings.splice(i, 1);
       }
@@ -167,7 +167,7 @@ export class WallManager {
   crushNearbyWalls(playerRadius) {
     for (const ring of this.activeRings) {
       const outer = ring.radius * (this.centerRadius + this.wallThickness);
-      if (outer < playerRadius + 2.4) {
+      if (outer < playerRadius + 2.5) {
         ring.hit = true;
         ring.group.visible = false;
       }
@@ -194,7 +194,7 @@ export class WallManager {
         : [
             'SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'TRIPLE_GAP', 'STAGGER',
             'VORTEX', 'STAIRS', 'ZIG_ZAG', 'SLALOM', 'TUNNEL', 'CANNON',
-            'CHEVRON', 'GAUNTLET', 'DOUBLE_GATE'
+            'CHEVRON', 'GAUNTLET', 'DOUBLE_GATE', 'LABYRINTH', 'CROSSOVER'
           ];
 
       let next = allPatterns[Math.floor(Math.random() * allPatterns.length)];
@@ -292,8 +292,22 @@ export class WallManager {
       }
 
       case 'GAUNTLET': {
-        // High-octane rapid alternating single gaps
         this.patternGapIndex = (this.patternGapIndex + (this.patternStep % 2 === 0 ? 2 : -2) + sides) % sides;
+        blockedSectors[this.patternGapIndex] = false;
+        break;
+      }
+
+      case 'LABYRINTH': {
+        const gapA = this.patternGapIndex;
+        const gapB = (this.patternGapIndex + (this.patternStep % 2 === 0 ? 1 : -1) + sides) % sides;
+        blockedSectors[gapA] = false;
+        blockedSectors[gapB] = false;
+        break;
+      }
+
+      case 'CROSSOVER': {
+        const jump = Math.floor(sides / 2) + (this.patternStep % 2 === 0 ? 1 : -1);
+        this.patternGapIndex = (this.patternGapIndex + jump + sides) % sides;
         blockedSectors[this.patternGapIndex] = false;
         break;
       }
@@ -349,7 +363,7 @@ export class WallManager {
 
   checkAngularHit(ring, playerHitbox, sides) {
     const sectorAngle = TAU / sides;
-    const halfArc = playerHitbox.halfArc !== undefined ? playerHitbox.halfArc : 0.07;
+    const halfArc = playerHitbox.halfArc !== undefined ? playerHitbox.halfArc : 0.068;
     const pMin = playerHitbox.angle - halfArc;
     const pMax = playerHitbox.angle + halfArc;
 
@@ -366,7 +380,7 @@ export class WallManager {
 
   minAngularDistanceToWall(ring, playerHitbox, sides) {
     const sectorAngle = TAU / sides;
-    const halfArc = playerHitbox.halfArc !== undefined ? playerHitbox.halfArc : 0.07;
+    const halfArc = playerHitbox.halfArc !== undefined ? playerHitbox.halfArc : 0.068;
     const pMin = playerHitbox.angle - halfArc;
     const pMax = playerHitbox.angle + halfArc;
     let best = Infinity;

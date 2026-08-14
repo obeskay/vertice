@@ -79,11 +79,7 @@ export class HUDManager {
     this.modeButtons.forEach(btn => {
       btn.addEventListener('click', (e) => {
         const mode = e.target.getAttribute('data-mode');
-        this.setModeActive(mode);
-        if (this.callbacks.onSelectMode) {
-          const best = this.callbacks.onSelectMode(mode);
-          this.updateBestScore(best);
-        }
+        this.selectMode(mode);
       });
     });
 
@@ -200,6 +196,24 @@ export class HUDManager {
     }
   }
 
+  selectMode(mode) {
+    this.setModeActive(mode);
+    if (this.callbacks.onSelectMode) {
+      const best = this.callbacks.onSelectMode(mode);
+      this.updateBestScore(best);
+    }
+  }
+
+  cycleMode(direction = 1) {
+    const modes = ['NORMAL', 'HIPER', 'EXTREMO', 'ZEN'];
+    let currentIdx = 0;
+    this.modeButtons.forEach((b, idx) => {
+      if (b.classList.contains('active')) currentIdx = idx;
+    });
+    const nextIdx = (currentIdx + direction + modes.length) % modes.length;
+    this.selectMode(modes[nextIdx]);
+  }
+
   setModeActive(mode) {
     this.modeButtons.forEach(b => {
       b.classList.toggle('active', b.getAttribute('data-mode') === mode);
@@ -286,7 +300,7 @@ export class HUDManager {
     if (this.rankNotificationTimer) clearTimeout(this.rankNotificationTimer);
     this.rankNotificationTimer = setTimeout(() => {
       this.centerMessage.classList.add('hidden');
-    }, 1300);
+    }, 1100);
   }
 
   showNearMiss(count) {
@@ -311,12 +325,12 @@ export class HUDManager {
     if (this.nearmissTimer) clearTimeout(this.nearmissTimer);
     this.nearmissTimer = setTimeout(() => {
       if (this.nearmissToast) this.nearmissToast.classList.add('hidden');
-    }, 900);
+    }, 850);
 
     if (this.nearmissChainTimer) clearTimeout(this.nearmissChainTimer);
     this.nearmissChainTimer = setTimeout(() => {
       this.nearmissChain = 0;
-    }, 2500);
+    }, 2200);
   }
 
   showGameOver(finalTime, bestTime, isNewRecord, nearMisses = 0, rankName = '', gradeObj = { grade: 'C', title: 'PILOTO' }) {
