@@ -110,13 +110,14 @@ export class PowerUpManager {
     let collected = null;
 
     if (prevOrbR >= pLo && orbR <= pHi) {
-      // ¿Coinciden angularmente?
+      // ¿Coinciden angularmente? (el hueco gira con su anillo: TWISTER)
       const TAU = Math.PI * 2;
+      const angle = this.orb.angle + ring.rotation;
       const pMin = playerHitbox.angle - playerHitbox.halfArc - this.orb.halfArc;
       const pMax = playerHitbox.angle + playerHitbox.halfArc + this.orb.halfArc;
       let hit = false;
       for (const offset of [0, TAU, -TAU]) {
-        if (this.orb.angle >= pMin + offset && this.orb.angle <= pMax + offset) {
+        if (angle >= pMin + offset && angle <= pMax + offset) {
           hit = true;
           break;
         }
@@ -124,8 +125,8 @@ export class PowerUpManager {
       if (hit) {
         collected = {
           type: this.orb.type,
-          x: Math.cos(this.orb.angle) * playerHitbox.radius,
-          y: Math.sin(this.orb.angle) * playerHitbox.radius
+          x: Math.cos(angle) * playerHitbox.radius,
+          y: Math.sin(angle) * playerHitbox.radius
         };
         if (this.onCollect) this.onCollect(collected.type, collected.x, collected.y);
         this.removeOrb();
@@ -147,8 +148,9 @@ export class PowerUpManager {
     const ring = this.orb.ring;
     const r = ring.prevRadius + (ring.radius - ring.prevRadius) * alpha;
     const orbR = r * (wallCenterRadius + wallThickness * 0.5);
-    this.orb.group.position.x = Math.cos(this.orb.angle) * orbR;
-    this.orb.group.position.y = Math.sin(this.orb.angle) * orbR;
+    const angle = this.orb.angle + ring.prevRotation + (ring.rotation - ring.prevRotation) * alpha;
+    this.orb.group.position.x = Math.cos(angle) * orbR;
+    this.orb.group.position.y = Math.sin(angle) * orbR;
     this.orb.group.position.z = 0.1;
     // Pulso visual
     const s = 1 + Math.sin(performance.now() * 0.008) * 0.12;

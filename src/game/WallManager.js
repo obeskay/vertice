@@ -118,6 +118,11 @@ export class WallManager {
       ring.prevRadius = ring.radius;
       ring.radius -= speed * deltaTime;
 
+      if (ring.rotSpeed) {
+        ring.prevRotation = ring.rotation;
+        ring.rotation += ring.rotSpeed * deltaTime;
+      }
+
       const newInner = ring.radius * this.centerRadius;
       const prevOuter = ring.prevRadius * (this.centerRadius + this.wallThickness);
       const newOuter = ring.radius * (this.centerRadius + this.wallThickness);
@@ -157,6 +162,10 @@ export class WallManager {
     for (const ring of this.activeRings) {
       const r = ring.prevRadius + (ring.radius - ring.prevRadius) * alpha;
       ring.group.scale.set(r, r, 1);
+      if (ring.rotSpeed) {
+        const rot = ring.prevRotation + (ring.rotation - ring.prevRotation) * alpha;
+        ring.group.rotation.z = rot;
+      }
     }
   }
 
@@ -188,13 +197,14 @@ export class WallManager {
       this._stairsDir = this.spiralDirection;
     } else if (this.patternStep >= this.patternLength) {
       const allPatterns = sides <= 3
-        ? ['SINGLE_GAP', 'TUNNEL', 'SPIRAL']
+        ? ['SINGLE_GAP', 'TUNNEL', 'SPIRAL', 'TWISTER']
         : sides === 4
-        ? ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'STAGGER', 'ZIG_ZAG', 'TUNNEL', 'CANNON']
+        ? ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'STAGGER', 'ZIG_ZAG', 'TUNNEL', 'CANNON', 'TWISTER', 'DOUBLE_REFLEX']
         : [
             'SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'TRIPLE_GAP', 'STAGGER',
             'VORTEX', 'STAIRS', 'ZIG_ZAG', 'SLALOM', 'TUNNEL', 'CANNON',
-            'CHEVRON', 'GAUNTLET', 'DOUBLE_GATE', 'LABYRINTH', 'CROSSOVER'
+            'CHEVRON', 'GAUNTLET', 'DOUBLE_GATE', 'LABYRINTH', 'CROSSOVER',
+            'TWISTER', 'PULSAR', 'DOUBLE_REFLEX', 'CORRIDOR'
           ];
 
       let next = allPatterns[Math.floor(Math.random() * allPatterns.length)];
@@ -210,6 +220,7 @@ export class WallManager {
     }
 
     const blockedSectors = new Array(sides).fill(true);
+    let rotSpeed = 0;
 
     switch (this.currentPattern) {
       case 'SINGLE_GAP':
@@ -222,6 +233,35 @@ export class WallManager {
         this.patternGapIndex = (this.patternGapIndex + this.spiralDirection + sides) % sides;
         blockedSectors[this.patternGapIndex] = false;
         break;
+
+      case 'TWISTER': {
+        this.patternGapIndex = (this.patternGapIndex + this.spiralDirection + sides) % sides;
+        blockedSectors[this.patternGapIndex] = false;
+        rotSpeed = this.spiralDirection * 0.40;
+        break;
+      }
+
+      case 'PULSAR': {
+        blockedSectors[this.patternGapIndex] = false;
+        if (this.patternStep % 2 === 0) {
+          blockedSectors[(this.patternGapIndex + 1) % sides] = false;
+        }
+        break;
+      }
+
+      case 'DOUBLE_REFLEX': {
+        const opp = (this.patternGapIndex + Math.floor(sides / 2)) % sides;
+        const activeGap = (this.patternStep % 2 === 0) ? this.patternGapIndex : opp;
+        blockedSectors[activeGap] = false;
+        break;
+      }
+
+      case 'CORRIDOR': {
+        this.patternGapIndex = (this.patternGapIndex + this.spiralDirection + sides) % sides;
+        blockedSectors[this.patternGapIndex] = false;
+        blockedSectors[(this.patternGapIndex + 1) % sides] = false;
+        break;
+      }
 
       case 'DOUBLE_FLANK': {
         blockedSectors[this.patternGapIndex] = false;
@@ -319,10 +359,10 @@ export class WallManager {
     }
 
     this.patternStep++;
-    this.createRingMesh(sides, blockedSectors);
+    this.createRingMesh(sides, blockedSectors, rotSpeed);
   }
 
-  createRingMesh(sides, blockedSectors) {
+  createRingMesh(sides, blockedSectors, rotSpeed = 0) {
     const ringGroup = new THREE.Group();
     const sectorAngle = TAU / sides;
     const geo = this.getSectorGeometry(sides);
@@ -350,6 +390,9 @@ export class WallManager {
       group: ringGroup,
       radius: this.spawnRadius,
       prevRadius: this.spawnRadius,
+      rotation: 0,
+      prevRotation: 0,
+      rotSpeed,
       blockedSectors,
       gaps,
       sides,
@@ -366,11 +409,12 @@ export class WallManager {
     const halfArc = playerHitbox.halfArc !== undefined ? playerHitbox.halfArc : 0.068;
     const pMin = playerHitbox.angle - halfArc;
     const pMax = playerHitbox.angle + halfArc;
+    const rot = ring.rotation || 0;
 
     for (let i = 0; i < sides; i++) {
       if (!ring.blockedSectors[i]) continue;
-      const sMin = i * sectorAngle;
-      const sMax = (i + 1) * sectorAngle;
+      const sMin = i * sectorAngle + rot;
+      const sMax = (i + 1) * sectorAngle + rot;
       for (const offset of [0, TAU, -TAU]) {
         if (pMin + offset < sMax && pMax + offset > sMin) return true;
       }
@@ -383,12 +427,13 @@ export class WallManager {
     const halfArc = playerHitbox.halfArc !== undefined ? playerHitbox.halfArc : 0.068;
     const pMin = playerHitbox.angle - halfArc;
     const pMax = playerHitbox.angle + halfArc;
+    const rot = ring.rotation || 0;
     let best = Infinity;
 
     for (let i = 0; i < sides; i++) {
       if (!ring.blockedSectors[i]) continue;
-      const sMin = i * sectorAngle;
-      const sMax = (i + 1) * sectorAngle;
+      const sMin = i * sectorAngle + rot;
+      const sMax = (i + 1) * sectorAngle + rot;
       for (const offset of [0, TAU, -TAU]) {
         const lo = pMin + offset;
         const hi = pMax + offset;
