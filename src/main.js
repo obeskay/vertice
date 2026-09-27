@@ -76,6 +76,12 @@ class Game {
     this.prevBeatPulse = 0;
     this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+    // Phase Dash & Hit-Stop feedback
+    this.dashPulse = 0;
+    this.hitStopTimer = 0;
+    this.heartbeatTimer = 0;
+    this._hyperdriveActive = false;
+
     this.hud = new HUDManager({
       onStartGame: () => this.startGame(),
       onResumeGame: () => this.resume(),
@@ -126,6 +132,9 @@ class Game {
           runs: this.score.loadLeaderboard()
         };
       },
+      onTouchDash: () => {
+        this.performPhaseDash();
+      },
       onTouchInput: (dir, pointerCount = 1) => {
         if (this.state === 'MENU' || this.state === 'GAMEOVER') {
           if (dir !== 0) {
@@ -149,9 +158,24 @@ class Game {
     requestAnimationFrame((t) => this.gameLoop(t));
   }
 
+  performPhaseDash() {
+    if (this.state !== 'PLAYING') return;
+    const inputDir = this.getInputDir();
+    const dashed = this.player.triggerPhaseDash(inputDir);
+    if (dashed) {
+      this.dashPulse = 1.0;
+      this.audio.playDashSound();
+      this.renderer.triggerScreenShake(this.reducedMotion ? 0.2 : 0.5);
+      this.renderer.triggerFovKick(14);
+      const pos = this.player.getRenderPosition();
+      this.fxShockwave(pos.x, pos.y, this.palette.getBlended('primary'), 24);
+      this.vibrate([15, 25]);
+    }
+  }
+
   setupKeyboard() {
     window.addEventListener('keydown', (e) => {
-      if (['ArrowLeft', 'ArrowRight', 'Space', 'KeyA', 'KeyD', 'KeyR', 'KeyW', 'ArrowUp', 'ArrowDown'].includes(e.code)) {
+      if (['ArrowLeft', 'ArrowRight', 'Space', 'KeyA', 'KeyD', 'KeyR', 'KeyW', 'KeyS', 'ArrowUp', 'ArrowDown'].includes(e.code)) {
         if (this.state === 'PLAYING') e.preventDefault();
       }
 
@@ -165,6 +189,14 @@ class Game {
         if (e.code === 'ArrowRight' || e.code === 'KeyD') {
           this.hud.cycleMode(1);
           this.audio.playUiClick();
+          return;
+        }
+      }
+
+      // Playing state: Space / S / ArrowDown triggers Phase Dash
+      if (this.state === 'PLAYING') {
+        if (e.code === 'Space' || e.code === 'KeyS' || e.code === 'ArrowDown') {
+          this.performPhaseDash();
           return;
         }
       }
@@ -222,6 +254,14 @@ class Game {
       const screenAngle = Math.atan2(-(y - cy), x - cx);
       this.mouseWorldAngle = screenAngle - this.worldRotation;
     });
+
+    // Right click triggers Phase Dash
+    window.addEventListener('contextmenu', (e) => {
+      if (this.state === 'PLAYING') {
+        e.preventDefault();
+        this.performPhaseDash();
+      }
+    });
   }
 
   setupVisibilityHandling() {
@@ -248,6 +288,10 @@ class Game {
     this.fxClearTrail();
     this.shield = false;
     this.calmaTimer = 0;
+    this.dashPulse = 0;
+    this.hitStopTimer = 0;
+    this.heartbeatTimer = 0;
+    this._hyperdriveActive = false;
     this.worldRotation = 0;
     this.prevWorldRotation = 0;
     this.accumulator = 0;
@@ -265,6 +309,9 @@ class Game {
     this.hud.updateTimer(this.score.getFormattedCurrentTime());
     this.hud.updateBestScore(this.score.getFormattedBestTime());
     this.hud.updateRank(this.level.ranks[0].name);
+    this.hud.updateDash(true, 1.0);
+    this.hud.updateCombo(0, 1, false);
+    this.player.setGhostColor(this.palette.getBlended('primary'));
     this.renderer.updateCenterPolygon(this.level.sides, this.palette.getBlended('center'));
   }
 
@@ -302,6 +349,7 @@ class Game {
     this.renderer.triggerScreenShake(this.reducedMotion ? 0.3 : 0.9);
     this.renderer.triggerFovKick(10);
     this.player.meshGroup.visible = false;
+    this.player.setGhostVisible(false);
   }
 
   showGameOver() {
@@ -477,13 +525,26 @@ class Game {
       this.collectPowerUp(puResult.collected);
     }
 
+    // Ghost Ship Recording & Playback
+    this.score.samplePlayerPosition(this.score.currentTime, this.player.angle);
+    const ghostAngle = this.score.getGhostAngle(this.score.currentTime);
+    if (ghostAngle !== null) {
+      this.player.setGhostVisible(true);
+      this.player.updateGhostPosition(ghostAngle);
+    } else {
+      this.player.setGhostVisible(false);
+    }
+
     if (result.nearMiss) {
-      this.score.addNearMiss();
-      this.hud.showNearMiss();
-      this.audio.playNearMiss();
+      const comboInfo = this.score.addNearMiss();
+      this.player.reduceDashCooldown(1.0);
+      this.hud.showNearMiss(comboInfo.comboChain);
+      this.hud.updateCombo(comboInfo.comboChain, comboInfo.comboMultiplier, comboInfo.isHyperdrive);
+      this.audio.playNearMiss(comboInfo.comboChain);
+      this.hitStopTimer = 0.018; // 18ms hit-stop punch
       this.fxShockwave(
         result.nearMiss.x, result.nearMiss.y,
-        this.palette.getBlended('primary'), 9
+        this.palette.getBlended('primary'), 12
       );
 
       this.flowChain++;
@@ -495,9 +556,28 @@ class Game {
         this.voice.announceFlow();
         this.audio.playRankUp();
       }
+
+      if (comboInfo.isHyperdrive && !this._hyperdriveActive) {
+        this._hyperdriveActive = true;
+        this.walls.ghostTime = Math.max(this.walls.ghostTime, 2.0);
+        this.hud.showRankNotification('HYPERDRIVE');
+        this.voice.announceHyperdrive();
+        this.audio.playHyperdriveTrigger();
+        this.renderer.triggerScreenShake(0.6);
+        this.renderer.triggerFovKick(14);
+        setTimeout(() => { this._hyperdriveActive = false; }, 2500);
+      }
     }
 
     if (result.collision) {
+      // Phase Dash invulnerability: slice safely through hazards
+      if (this.player.isInvulnerable) {
+        this.walls.crushNearbyWalls(this.player.radius);
+        this.renderer.triggerScreenShake(0.25);
+        this.audio.playUiClick();
+        return;
+      }
+
       // In ZEN mode, bounce instead of dying
       if (this.level.mode === 'ZEN') {
         this.walls.ghostTime = 1.2;
@@ -532,12 +612,28 @@ class Game {
     const rawDt = Math.min(0.1, frameMs / 1000);
     this.lastTime = currentTime;
 
+    // Hit-stop micro-freeze on near-misses (18ms crunchy arcade punch)
+    if (this.hitStopTimer > 0) {
+      this.hitStopTimer -= rawDt;
+      requestAnimationFrame((t) => this.gameLoop(t));
+      return;
+    }
+
+    if (this.dashPulse > 0) {
+      this.dashPulse = Math.max(0, this.dashPulse - rawDt * 5.5);
+    }
+
     this.palette.update(rawDt, this.score.currentTime);
     this.applyPaletteTheme();
 
     if (this.state === 'PLAYING') {
       if (this.calmaTimer > 0) {
         this.calmaTimer -= rawDt;
+        this.heartbeatTimer = (this.heartbeatTimer || 0) + rawDt;
+        if (this.heartbeatTimer >= 0.85) {
+          this.heartbeatTimer = 0;
+          this.audio.playHeartbeat();
+        }
         if (this.calmaTimer <= 0) {
           this.audio.setFilterCutoff(20000, 0.35);
         }
@@ -561,6 +657,8 @@ class Game {
       if (steps === MAX_STEPS) this.accumulator = 0;
 
       this.hud.updateTimer(this.score.getFormattedCurrentTime());
+      this.hud.updateDash(this.player.dashReady, this.player.dashProgress);
+      this.hud.updateCombo(this.score.comboChain, this.score.comboMultiplier, this.score.comboChain >= 5);
     } else if (this.state === 'DYING') {
       this.deathElapsed += rawDt;
       if (this.deathElapsed < 0.09) {
@@ -615,7 +713,7 @@ class Game {
 
     const renderRotation = this.prevWorldRotation + (this.worldRotation - this.prevWorldRotation) * alpha;
     const playerTilt = this.player.tilt || 0;
-    this.renderer.render(beatPulse, rawDt, renderRotation, isTurboActive, playerTilt);
+    this.renderer.render(beatPulse, rawDt, renderRotation, isTurboActive, playerTilt, this.dashPulse);
 
     requestAnimationFrame((t) => this.gameLoop(t));
   }

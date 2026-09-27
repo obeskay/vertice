@@ -116,4 +116,8 @@ export class VoiceEngine {
   announceFlow() {
     this.speak('FLOW COMBO!', false);
   }
+
+  announceHyperdrive() {
+    this.speak('HYPERDRIVE!', true);
+  }
 }

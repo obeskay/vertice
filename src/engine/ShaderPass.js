@@ -29,6 +29,7 @@ export class ShaderPass {
         uTime: { value: 0 },
         uTurbo: { value: 0 },
         uBeatPulse: { value: 0 },
+        uDashPulse: { value: 0 },
         uResolution: { value: new THREE.Vector2(width, height) }
       },
       vertexShader: `
@@ -43,6 +44,7 @@ export class ShaderPass {
         uniform float uTime;
         uniform float uTurbo;
         uniform float uBeatPulse;
+        uniform float uDashPulse;
         uniform vec2 uResolution;
         varying vec2 vUv;
 
@@ -56,23 +58,24 @@ export class ShaderPass {
           vec2 distVec = uv - center;
           float dist = length(distVec);
 
-          // 1. Radial Motion Warp in Turbo
-          float warpFactor = uTurbo * 0.045 * sin(dist * 18.0 - uTime * 12.0);
+          // 1. Radial Motion Warp in Turbo & Phase Dash
+          float warpFactor = (uTurbo * 0.045 + uDashPulse * 0.08) * sin(dist * 18.0 - uTime * 14.0);
           vec2 warpedUv = uv - distVec * warpFactor;
 
-          // 2. Chromatic Aberration (kicks with bass beats and turbo)
-          float shiftAmount = (0.0018 + uBeatPulse * 0.0045 + uTurbo * 0.010) * (dist + 0.2);
+          // 2. Chromatic Aberration (kicks with bass beats, turbo, and phase dash)
+          float shiftAmount = (0.0018 + uBeatPulse * 0.0045 + uTurbo * 0.010 + uDashPulse * 0.022) * (dist + 0.2);
           float r = texture2D(tDiffuse, warpedUv + vec2(shiftAmount, 0.0)).r;
           float g = texture2D(tDiffuse, warpedUv).g;
           float b = texture2D(tDiffuse, warpedUv - vec2(shiftAmount, 0.0)).b;
           vec3 color = vec3(r, g, b);
 
-          // 3. Radial Speed Lines during Turbo
-          if (uTurbo > 0.01) {
+          // 3. Radial Speed Lines during Turbo or Dash
+          float speedIntensity = max(uTurbo, uDashPulse * 1.5);
+          if (speedIntensity > 0.01) {
             float angle = atan(distVec.y, distVec.x);
-            float speedLine = sin(angle * 32.0 + uTime * 25.0);
-            speedLine = smoothstep(0.72, 1.0, speedLine) * uTurbo * smoothstep(0.25, 0.8, dist);
-            color += vec3(speedLine * 0.32);
+            float speedLine = sin(angle * 32.0 + uTime * 28.0);
+            speedLine = smoothstep(0.70, 1.0, speedLine) * speedIntensity * smoothstep(0.20, 0.8, dist);
+            color += vec3(speedLine * 0.38);
           }
 
           // 4. Subtle Tactile Grain
@@ -99,7 +102,7 @@ export class ShaderPass {
     this.material.uniforms.uResolution.value.set(width, height);
   }
 
-  render(scene, camera, time, turboAmount, beatPulse) {
+  render(scene, camera, time, turboAmount, beatPulse, dashPulse = 0) {
     this.renderer.setRenderTarget(this.renderTarget);
     this.renderer.render(scene, camera);
     this.renderer.setRenderTarget(null);
@@ -108,6 +111,7 @@ export class ShaderPass {
     this.material.uniforms.uTime.value = time;
     this.material.uniforms.uTurbo.value = turboAmount;
     this.material.uniforms.uBeatPulse.value = beatPulse;
+    this.material.uniforms.uDashPulse.value = dashPulse;
 
     this.renderer.render(this.scene, this.camera);
   }

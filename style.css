@@ -107,6 +107,49 @@ html, body {
   padding: 0.35rem 1.0rem;
 }
 
+.dash-pill {
+  background: #ffffff;
+  color: #000000;
+  font-size: 0.80rem;
+  transition: all 0.15s ease;
+}
+
+.dash-pill.ready {
+  background: #00f0ff;
+  color: #000000;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.45), 4px 4px 0 #000000;
+}
+
+.dash-pill.cooldown {
+  opacity: 0.65;
+  background: #e0e0e0;
+}
+
+.combo-pill {
+  background: #ffcc00;
+  color: #000000;
+  border: 3px solid #000000;
+  font-weight: 900;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  animation: pop-toast 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.combo-pill.hyperdrive {
+  background: #ff0055;
+  color: #ffffff;
+  animation: pulse-turbo 0.35s infinite alternate ease-in-out;
+}
+
+.combo-pill.hidden {
+  display: none !important;
+}
+
+.combo-mult {
+  font-size: 1.05rem;
+  font-weight: 900;
+}
+
 .near-miss-pill {
   background: #ffcc00;
   color: #000000;
@@ -382,6 +425,7 @@ body.playing .pill-label {
   border: 2px solid #000000;
   padding: 0.40rem;
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   align-items: center;
   gap: 0.40rem;
@@ -530,6 +574,38 @@ kbd.key {
 
 @media (pointer: fine) {
   .touch-zone .arrow-icon { display: none; }
+  .touch-dash-zone { display: none !important; }
+}
+
+.touch-dash-zone {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 2.2rem;
+  pointer-events: auto;
+  z-index: 8;
+  width: 90px;
+}
+
+.touch-dash-btn {
+  background: #00f0ff;
+  color: #000000;
+  border: 3px solid #000000;
+  box-shadow: 3px 3px 0 #000000;
+  font-family: var(--font-main);
+  font-weight: 900;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform 0.08s ease, background 0.15s ease;
+}
+
+.touch-dash-btn:active {
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 #000000;
+  background: #ffffff;
 }
 
 /* ─── Mobile Optimizations ─── */
@@ -537,6 +613,11 @@ kbd.key {
   .hud-dock {
     top: 0.8rem;
     padding: 0 0.8rem;
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+  .dock-right {
+    margin-left: auto;
   }
   .dock-pill {
     padding: 0.22rem 0.55rem;

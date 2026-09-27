@@ -34,9 +34,17 @@
           <span class="pill-label">RÉCORD</span>
           <span id="best-display">00:00.0</span>
         </div>
+        <div class="dock-pill dash-pill" id="dash-indicator">
+          <span class="pill-label">DASH</span>
+          <span id="dash-status">LISTO</span>
+        </div>
       </div>
 
       <div class="dock-right">
+        <div class="dock-pill combo-pill hidden" id="combo-indicator">
+          <span id="combo-multiplier" class="combo-mult">x2</span>
+          <span id="combo-text">COMBO</span>
+        </div>
         <div class="dock-pill near-miss-pill hidden" id="near-miss-indicator">
           <span id="near-miss-text">ROZE!</span>
         </div>
@@ -91,9 +99,11 @@
         </button>
 
         <div class="controls-pill">
-          <kbd class="key">ESPACIO</kbd> <span class="or-separator">jugar</span>
+          <kbd class="key">ESPACIO</kbd> <span class="or-separator">dash</span>
           <span class="key-divider">•</span>
-          <kbd class="key">←</kbd><kbd class="key">→</kbd> <span class="or-separator">mover</span>
+          <kbd class="key">SHIFT</kbd> <span class="or-separator">turbo</span>
+          <span class="key-divider">•</span>
+          <kbd class="key">←</kbd><kbd class="key">→</kbd> <span class="or-separator">girar</span>
         </div>
 
         <!-- Settings Buttons -->
@@ -140,10 +150,13 @@
       </div>
     </div>
 
-    <!-- Intuitive Touch Overlay -->
+    <!-- Intuitive Touch Overlay with Central Quick Dash -->
     <div id="touch-controls">
       <div id="touch-left" class="touch-zone">
         <span class="arrow-icon">←</span>
+      </div>
+      <div id="touch-dash" class="touch-dash-zone">
+        <div class="touch-dash-btn">DASH</div>
       </div>
       <div id="touch-right" class="touch-zone">
         <span class="arrow-icon">→</span>

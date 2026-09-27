@@ -53,9 +53,17 @@ export class HUDManager {
     this.leaderboardList = document.getElementById('leaderboard-list');
     this.lbTitle = document.getElementById('lb-title');
 
+    // Dash & Combo Indicators
+    this.dashIndicator = document.getElementById('dash-indicator');
+    this.dashStatus = document.getElementById('dash-status');
+    this.comboIndicator = document.getElementById('combo-indicator');
+    this.comboMultiplier = document.getElementById('combo-multiplier');
+    this.comboText = document.getElementById('combo-text');
+
     // Touch Controls
     this.touchLeft = document.getElementById('touch-left');
     this.touchRight = document.getElementById('touch-right');
+    this.touchDash = document.getElementById('touch-dash');
     this.touchControls = document.getElementById('touch-controls');
 
     this.rankNotificationTimer = null;
@@ -187,6 +195,14 @@ export class HUDManager {
         }
       });
     }
+
+    if (this.touchDash && this.callbacks.onTouchDash) {
+      this.touchDash.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        this.callbacks.onTouchDash();
+      });
+    }
   }
 
   selectMode(mode) {
@@ -194,6 +210,31 @@ export class HUDManager {
     if (this.callbacks.onSelectMode) {
       const best = this.callbacks.onSelectMode(mode);
       this.updateBestScore(best);
+    }
+  }
+
+  updateDash(ready, progress) {
+    if (!this.dashIndicator || !this.dashStatus) return;
+    if (ready) {
+      this.dashIndicator.classList.add('ready');
+      this.dashIndicator.classList.remove('cooldown');
+      this.dashStatus.innerText = 'LISTO';
+    } else {
+      this.dashIndicator.classList.remove('ready');
+      this.dashIndicator.classList.add('cooldown');
+      this.dashStatus.innerText = `${Math.floor(progress * 100)}%`;
+    }
+  }
+
+  updateCombo(chain, multiplier, isHyperdrive = false) {
+    if (!this.comboIndicator) return;
+    if (chain >= 2) {
+      this.comboIndicator.classList.remove('hidden');
+      if (this.comboMultiplier) this.comboMultiplier.innerText = `x${multiplier}`;
+      if (this.comboText) this.comboText.innerText = isHyperdrive ? 'HYPERDRIVE!' : 'COMBO';
+      this.comboIndicator.classList.toggle('hyperdrive', isHyperdrive);
+    } else {
+      this.comboIndicator.classList.add('hidden');
     }
   }
 

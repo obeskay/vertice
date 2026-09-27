@@ -490,29 +490,91 @@ export class AudioEngine {
   }
 
   // ─── SFX (Connected directly to sfxBusGain so they always play) ───
-  playNearMiss() {
-    this.playNearMissSound();
+  playNearMiss(chain = 1) {
+    this.playNearMissSound(chain);
   }
 
-  playNearMissSound() {
+  playNearMissSound(chain = 1) {
     if (!this.ctx || this.isMuted) return;
     const time = this.ctx.currentTime;
+    const pentatonic = [523.25, 587.33, 659.25, 783.99, 880.00, 1046.50, 1174.66, 1318.51];
+    const idx = Math.min(pentatonic.length - 1, Math.max(0, chain - 1));
+    const baseFreq = pentatonic[idx];
 
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(980, time);
-    osc.frequency.exponentialRampToValueAtTime(2200, time + 0.065);
+    osc.type = chain >= 5 ? 'sawtooth' : 'sine';
+    osc.frequency.setValueAtTime(baseFreq, time);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.45, time + 0.08);
 
-    gain.gain.setValueAtTime(0.44, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.065);
+    gain.gain.setValueAtTime(0.46, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.085);
 
     osc.connect(gain);
     gain.connect(this.sfxBusGain);
 
     osc.start(time);
-    osc.stop(time + 0.07);
+    osc.stop(time + 0.09);
+  }
+
+  playDashSound() {
+    if (!this.ctx || this.isMuted) return;
+    const time = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(750, time);
+    osc.frequency.exponentialRampToValueAtTime(2200, time + 0.05);
+    osc.frequency.exponentialRampToValueAtTime(180, time + 0.15);
+
+    gain.gain.setValueAtTime(0.38, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.15);
+
+    osc.connect(gain);
+    gain.connect(this.sfxBusGain);
+
+    osc.start(time);
+    osc.stop(time + 0.16);
+  }
+
+  playHyperdriveTrigger() {
+    if (!this.ctx || this.isMuted) return;
+    const time = this.ctx.currentTime;
+    const chord = [440, 554.37, 659.25, 880, 1108.73, 1318.51];
+    chord.forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const t = time + i * 0.028;
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.30, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+      osc.connect(gain);
+      gain.connect(this.sfxBusGain);
+      osc.start(t);
+      osc.stop(t + 0.32);
+    });
+  }
+
+  playHeartbeat() {
+    if (!this.ctx || this.isMuted) return;
+    const time = this.ctx.currentTime;
+    [0, 0.13].forEach((delay) => {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const t = time + delay;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(80, t);
+      osc.frequency.exponentialRampToValueAtTime(30, t + 0.10);
+      gain.gain.setValueAtTime(0.38, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.11);
+      osc.connect(gain);
+      gain.connect(this.sfxBusGain);
+      osc.start(t);
+      osc.stop(t + 0.11);
+    });
   }
 
   playRankUp() {

@@ -7,16 +7,34 @@ export class ScoreSystem {
   constructor() {
     this.mode = 'NORMAL';
     this.currentTime = 0;
+    this.totalScore = 0;
     this.bestTimes = this.loadAllBestScores();
     this.rankScores = this.loadRankScores();
     this.isNewRecord = false;
     this.nearMisses = 0;
+
+    // Combo & Hyperdrive system
+    this.comboChain = 0;
+    this.maxCombo = 0;
+    this.comboMultiplier = 1;
+    this.comboTimer = 0;
+
+    // Ghost Ship Recording (20Hz sampling)
+    this.currentTrajectory = [];
+    this.lastSampleTime = 0;
+    this.ghostTrajectory = this.loadGhostTrajectory(this.mode);
   }
 
   setMode(mode = 'NORMAL') {
     this.mode = mode;
     this.currentTime = 0;
+    this.totalScore = 0;
     this.isNewRecord = false;
+    this.comboChain = 0;
+    this.maxCombo = 0;
+    this.comboMultiplier = 1;
+    this.comboTimer = 0;
+    this.ghostTrajectory = this.loadGhostTrajectory(this.mode);
   }
 
   get bestTime() {
@@ -29,20 +47,91 @@ export class ScoreSystem {
 
   reset() {
     this.currentTime = 0;
+    this.totalScore = 0;
     this.isNewRecord = false;
     this.nearMisses = 0;
+    this.comboChain = 0;
+    this.maxCombo = 0;
+    this.comboMultiplier = 1;
+    this.comboTimer = 0;
+    this.currentTrajectory = [];
+    this.lastSampleTime = 0;
+    this.ghostTrajectory = this.loadGhostTrajectory(this.mode);
   }
 
   update(deltaTime) {
     this.currentTime += deltaTime;
+    this.totalScore += deltaTime * 80 * this.comboMultiplier;
+
+    if (this.comboTimer > 0) {
+      this.comboTimer -= deltaTime;
+      if (this.comboTimer <= 0) {
+        this.comboChain = 0;
+        this.comboMultiplier = 1;
+      }
+    }
+
     if (this.currentTime > this.bestTime) {
       this.bestTime = this.currentTime;
       this.isNewRecord = true;
     }
   }
 
+  samplePlayerPosition(time, angle) {
+    if (this.currentTrajectory.length === 0 || time - this.lastSampleTime >= 0.048) {
+      this.lastSampleTime = time;
+      this.currentTrajectory.push({
+        t: Math.round(time * 100) / 100,
+        a: Math.round(angle * 1000) / 1000
+      });
+    }
+  }
+
+  getGhostAngle(time) {
+    if (!this.ghostTrajectory || this.ghostTrajectory.length === 0) return null;
+    const traj = this.ghostTrajectory;
+    if (time > traj[traj.length - 1].t) return null; // Ghost already crashed
+
+    // Fast indexed binary search for time slot
+    let low = 0, high = traj.length - 1;
+    while (low <= high) {
+      const mid = (low + high) >> 1;
+      if (traj[mid].t < time) low = mid + 1;
+      else high = mid - 1;
+    }
+
+    const idx = Math.max(0, Math.min(traj.length - 1, low));
+    if (idx === 0) return traj[0].a;
+    const p0 = traj[idx - 1];
+    const p1 = traj[idx];
+    const span = p1.t - p0.t;
+    if (span <= 0.0001) return p0.a;
+    const alpha = (time - p0.t) / span;
+
+    // Shortest angular interpolation
+    const TAU = Math.PI * 2;
+    let diff = p1.a - p0.a;
+    while (diff > Math.PI) diff -= TAU;
+    while (diff < -Math.PI) diff += TAU;
+    return p0.a + diff * alpha;
+  }
+
   addNearMiss() {
     this.nearMisses++;
+    this.comboChain++;
+    if (this.comboChain > this.maxCombo) this.maxCombo = this.comboChain;
+    this.comboTimer = 2.4;
+    this.comboMultiplier = Math.min(8, Math.floor((this.comboChain - 1) / 2) + 1);
+
+    const pointsEarned = 150 * this.comboMultiplier;
+    this.totalScore += pointsEarned;
+
+    return {
+      pointsEarned,
+      comboChain: this.comboChain,
+      comboMultiplier: this.comboMultiplier,
+      isHyperdrive: this.comboChain >= 5
+    };
   }
 
   getGrade(seconds = this.currentTime) {
@@ -72,6 +161,8 @@ export class ScoreSystem {
   commit(rankName = '') {
     if (this.isNewRecord) {
       this.saveBestScore(this.mode, this.bestTime);
+      this.saveGhostTrajectory(this.mode, this.currentTrajectory);
+      this.ghostTrajectory = [...this.currentTrajectory];
     }
     if (rankName) {
       const key = `${this.mode}_${rankName}`;
@@ -91,6 +182,8 @@ export class ScoreSystem {
       const runInfo = {
         time: this.currentTime,
         formattedTime: this.getFormattedCurrentTime(),
+        score: Math.round(this.totalScore),
+        maxCombo: this.maxCombo,
         grade: this.getGrade().grade,
         rankName,
         nearMisses: this.nearMisses,
@@ -101,6 +194,22 @@ export class ScoreSystem {
       leaderboard.sort((a, b) => b.time - a.time);
       const top5 = leaderboard.slice(0, 5);
       localStorage.setItem(leaderboardKey, JSON.stringify(top5));
+    } catch (e) {}
+  }
+
+  loadGhostTrajectory(mode = this.mode) {
+    try {
+      const saved = localStorage.getItem(`vertice_ghost_${mode}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  saveGhostTrajectory(mode, trajectory) {
+    try {
+      if (!trajectory || trajectory.length === 0) return;
+      localStorage.setItem(`vertice_ghost_${mode}`, JSON.stringify(trajectory));
     } catch (e) {}
   }
 

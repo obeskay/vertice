@@ -39,6 +39,12 @@ export class Player {
 
     this.tilt = 0;
 
+    // Phase Dash Mechanics
+    this.dashCooldownDuration = 2.8;
+    this.dashCooldownTimer = 0;
+    this.dashInvulnDuration = 0.22;
+    this.dashInvulnTimer = 0;
+
     this.meshGroup = new THREE.Group();
 
     // 1. Sleek Precision Arrow Ship
@@ -101,6 +107,27 @@ export class Player {
     this.meshGroup.add(this.shieldMesh);
 
     this.scene.add(this.meshGroup);
+
+    // 4. Phantom Ghost Ship (Historical Personal Best Replay Shadow)
+    this.ghostGroup = new THREE.Group();
+    this.ghostMat = new THREE.MeshBasicMaterial({
+      color: 0x00ffff,
+      transparent: true,
+      opacity: 0.38,
+      side: THREE.DoubleSide
+    });
+    this.ghostMesh = new THREE.Mesh(geometry, this.ghostMat);
+    this.ghostGroup.add(this.ghostMesh);
+
+    this.ghostEdges = new THREE.LineSegments(
+      edgesGeo,
+      new THREE.LineBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.60, linewidth: 2 })
+    );
+    this.ghostEdges.scale.set(1.05, 1.05, 1.05);
+    this.ghostGroup.add(this.ghostEdges);
+    this.ghostGroup.visible = false;
+    this.scene.add(this.ghostGroup);
+
     this._renderAngle = this.angle;
     this.updateMeshPosition(0, 1, 0.016);
   }
@@ -143,10 +170,72 @@ export class Player {
     this.angularVel = 0;
     this.tilt = 0;
     this.turboActive = false;
+    this.dashCooldownTimer = 0;
+    this.dashInvulnTimer = 0;
     this.meshGroup.visible = true;
+    this.ghostGroup.visible = false;
     this.showShield(false);
     this.targetLane = this._nearestLane(this.angle);
     this.updateMeshPosition(0, 1, 0.016);
+  }
+
+  triggerPhaseDash(dir = 0) {
+    if (this.dashCooldownTimer > 0) return false;
+    this.dashCooldownTimer = this.dashCooldownDuration;
+    this.dashInvulnTimer = this.dashInvulnDuration;
+
+    let dashDir = dir;
+    if (dashDir === 0) {
+      dashDir = Math.sign(this.angularVel) || 1;
+    }
+
+    if (this.controlMode === 'LANES') {
+      this.queueLaneMove(dashDir);
+      this.angularVel = dashDir * 38.0;
+    } else {
+      // Rapid orbital leap along the perimeter
+      this.angularVel = dashDir * 32.0;
+      this.angle = ((this.angle + dashDir * 0.42) % TAU + TAU) % TAU;
+    }
+    return true;
+  }
+
+  reduceDashCooldown(amount = 1.0) {
+    this.dashCooldownTimer = Math.max(0, this.dashCooldownTimer - amount);
+  }
+
+  get isInvulnerable() {
+    return this.dashInvulnTimer > 0;
+  }
+
+  get dashReady() {
+    return this.dashCooldownTimer <= 0;
+  }
+
+  get dashProgress() {
+    return 1 - Math.max(0, this.dashCooldownTimer / this.dashCooldownDuration);
+  }
+
+  setGhostVisible(visible) {
+    this.ghostGroup.visible = visible;
+  }
+
+  updateGhostPosition(angle) {
+    if (!this.ghostGroup.visible || angle === null || angle === undefined) return;
+    this.ghostGroup.position.x = Math.cos(angle) * this.radius;
+    this.ghostGroup.position.y = Math.sin(angle) * this.radius;
+    this.ghostGroup.position.z = 0.07;
+    this.ghostGroup.rotation.z = angle - Math.PI / 2;
+  }
+
+  setGhostColor(colorHex) {
+    if (typeof colorHex === 'number') {
+      this.ghostMat.color.setHex(colorHex);
+      this.ghostEdges.material.color.setHex(colorHex);
+    } else if (colorHex && colorHex.getHex) {
+      this.ghostMat.color.copy(colorHex);
+      this.ghostEdges.material.color.copy(colorHex);
+    }
   }
 
   /**
@@ -155,6 +244,13 @@ export class Player {
   update(deltaTime, inputDir, turbo = false, pointerAngle = null) {
     this.prevAngle = this.angle;
     this.turboActive = turbo;
+
+    if (this.dashCooldownTimer > 0) {
+      this.dashCooldownTimer = Math.max(0, this.dashCooldownTimer - deltaTime);
+    }
+    if (this.dashInvulnTimer > 0) {
+      this.dashInvulnTimer = Math.max(0, this.dashInvulnTimer - deltaTime);
+    }
 
     // Pointer steer overrides
     if (pointerAngle !== null && pointerAngle !== undefined) {
@@ -177,12 +273,15 @@ export class Player {
     }
 
     if (this.controlMode === 'ARCADE') {
-      // Fluid Arcade Continuous Steering
+      // Fluid Arcade Continuous Steering with Counter-Steer Boost
       const maxSpeed = turbo ? this.turboSpeed : this.baseSpeed;
       const targetVel = inputDir * maxSpeed;
 
       if (inputDir !== 0) {
-        this.angularVel += (targetVel - this.angularVel) * Math.min(1, deltaTime * this.acceleration);
+        // Instant response counter-steering torque: eliminates sluggish turnaround
+        const isCounterSteer = (this.angularVel > 0.5 && inputDir < 0) || (this.angularVel < -0.5 && inputDir > 0);
+        const effectiveAccel = isCounterSteer ? this.acceleration * 3.5 : this.acceleration;
+        this.angularVel += (targetVel - this.angularVel) * Math.min(1, deltaTime * effectiveAccel);
       } else {
         this.angularVel += (0 - this.angularVel) * Math.min(1, deltaTime * this.damping);
         if (Math.abs(this.angularVel) < 0.05) this.angularVel = 0;
@@ -248,6 +347,10 @@ export class Player {
     } else {
       this.thrusterMat.opacity = Math.max(0, this.thrusterMat.opacity - dt * 18);
     }
+
+    // Phase Dash Invulnerability Aura Flare (set on the group so it never compounds with the stretch lerp)
+    const pulseScale = 1.0 + (this.dashInvulnTimer / this.dashInvulnDuration) * 0.40;
+    this.meshGroup.scale.set(pulseScale, pulseScale, 1);
 
     if (this.shieldMesh.visible) {
       this.shieldMesh.rotation.z += dt * 4.0;

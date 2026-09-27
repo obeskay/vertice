@@ -194,7 +194,7 @@ export class Renderer {
     this._flashIntensity = intensity;
   }
 
-  render(audioBeatPulse = 0, deltaTime = 0.016, worldRotation = 0, turboActive = false, playerTilt = 0) {
+  render(audioBeatPulse = 0, deltaTime = 0.016, worldRotation = 0, turboActive = false, playerTilt = 0, dashPulse = 0) {
     this.totalTime += deltaTime;
     const targetTurbo = turboActive ? 1.0 : 0.0;
     this.turboAmount += (targetTurbo - this.turboAmount) * Math.min(1, deltaTime * 12.0);
@@ -204,12 +204,12 @@ export class Renderer {
     }
 
     // Dynamic Camera FOV & Distance Surge on Beats & Turbo
-    const nitroFov = this.turboAmount * 18.0;
+    const nitroFov = this.turboAmount * 18.0 + dashPulse * 12.0;
     const targetFov = 65 + audioBeatPulse * 2.5 + this.fovKick + nitroFov;
     this.camera.fov += (targetFov - this.camera.fov) * 0.25;
     this.camera.updateProjectionMatrix();
 
-    const nitroZ = this.turboAmount * 0.85;
+    const nitroZ = this.turboAmount * 0.85 + dashPulse * 0.5;
     const zSurge = this.baseCameraPos.z - audioBeatPulse * 0.18 + nitroZ;
     this.camera.position.z = zSurge;
 
@@ -219,7 +219,7 @@ export class Renderer {
     this.camera.rotation.z = this.cameraBanking;
 
     // Camera Shake
-    const effectiveShake = this.shakeIntensity + (turboActive ? 0.16 : 0);
+    const effectiveShake = this.shakeIntensity + (turboActive ? 0.16 : 0) + (dashPulse * 0.25);
     if (effectiveShake > 0) {
       this.shakeOffset.set(
         (Math.random() - 0.5) * effectiveShake,
@@ -255,7 +255,7 @@ export class Renderer {
 
     // Post-processing ShaderPass
     if (this.shaderPass) {
-      this.shaderPass.render(this.scene, this.camera, this.totalTime, this.turboAmount, audioBeatPulse);
+      this.shaderPass.render(this.scene, this.camera, this.totalTime, this.turboAmount, audioBeatPulse, dashPulse);
     } else {
       this.renderer.render(this.scene, this.camera);
     }
