@@ -19,7 +19,7 @@ Pendiente tuyo (presentación):
 
 ## 2026-07-31 (2ª pasada) — Hermes
 
-Pedido de Obed: anti-epilepsia, sin círculos, turbo, más precisión.
+Pedido de ov: anti-epilepsia, sin círculos, turbo, más precisión.
 - `Player.js`: rampa de velocidad (~40ms), TURBO (Shift/W/↑, ×1.55), pointer steer proporcional, escudo HEXAGONAL.
 - `main.js`: mouse steer (compensa rotación del mundo), turbo, combo FLOW (3 rozes = 1.5s ghost), flash de fondo bajado a 0.02.
 - `LevelSystem.js`: curva más amable (4.0 base, onda ±10%).
@@ -28,17 +28,17 @@ Pedido de Obed: anti-epilepsia, sin círculos, turbo, más precisión.
 
 ## 2026-07-31 (3ª pasada) — Hermes
 
-Pedido de Obed: muros poligonales (no círculos) + sync con música externa estilo osu!.
+Pedido de ov: muros poligonales (no círculos) + sync con música externa estilo osu!.
 - `WallManager.js`: sectores ahora TRAPEZOIDES rectos (4 vértices) — el túnel sigue la forma del nivel. `update()` acepta `suppressSpawn` y nuevo `spawnNow(sides)` para spawn gobernado por beat.
 - NUEVO `src/engine/MusicSync.js` (mío): captura audio de pestaña (getDisplayMedia), beat tracking por energía de bombo 40–190Hz con umbral adaptativo, BPM por mediana de intervalos, `getBeatPhase()`, `getSpeedMultiplier()`. `connectSource(node)` permite test sin permisos.
 - `main.js`: `onToggleSync`, spawn cuantizado a beats (cada N beats según densidad), velocidad × BPM, beatPulse desde sync cuando está activo.
 - `index.html` + `HUDManager.js` (tuyos, parche mínimo): botón `btn-sync-toggle`, pill `sync-pill`/`bpm-display`, `updateBpm(bpm)`.
 - `style.css`: `.sync-pill` (acento), `.dock-pill.hidden`, `best-pill` reemplaza el selector :last-child.
-- Verificado: BPM 115 (real 120) y 176 (real 174) con señal sintética; spawn cuantizado OK; trapecio confirmado (36 vértices extruidos). OJO: en este browser de test el AudioContext queda suspended sin gesto real — en el navegador de Obed funciona con el click del botón.
+- Verificado: BPM 115 (real 120) y 176 (real 174) con señal sintética; spawn cuantizado OK; trapecio confirmado (36 vértices extruidos). OJO: en este browser de test el AudioContext queda suspended sin gesto real — en el navegador de ov funciona con el click del botón.
 
 ## 2026-07-31 (4ª pasada) — Hermes: CARRILES + GAJOS
 
-Pedido de Obed (refs Super Hexagon + /impeccable): el nivel define las posiciones de movimiento.
+Pedido de ov (refs Super Hexagon + /impeccable): el nivel define las posiciones de movimiento.
 - `Player.js`: MOVIMIENTO POR CARRILES. `setLanes(n)`, `queueLaneMove(dir)`, mouse → carril más cercano. Ease proporcional (stiffness 18, turbo 30), snap final a 0.0015 rad.
 - `LevelSystem.js`: ranks = lados (PUNTO/LÍNEA=2, TRIÁNGULO=3, CUADRADO=4, PENTÁGONO=5, HEXÁGONO=6, VÉRTICE=8). **FIRMA: `update(survivalTime, deltaTime)`** (la versión en disco es del otro agente con ese orden — main.js la respeta, NO cambiar).
 - `main.js`: input discreto (flanco = 1 salto; hold → auto-repeat tras 170ms cada 105ms), `player.setLanes()` al cambiar sides, `updateWedges()` en applyPaletteTheme.
