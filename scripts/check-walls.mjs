@@ -1,5 +1,6 @@
 // Self-check for WallManager and LevelSystem: grazes fire, the mercy ring is fair, a seed
-// is deterministic, rings are dense enough to read patterns, and the difficulty only climbs.
+// is deterministic, rings are dense enough to read patterns, the difficulty only climbs and
+// the stages sit on the soundtrack's bar grid.
 // Run: node scripts/check-walls.mjs
 import { register } from 'node:module';
 import assert from 'node:assert/strict';
@@ -79,7 +80,22 @@ assert.deepEqual(sequence(20261116), sequence(20261116), 'same seed must give sa
 }
 assert.notDeepEqual(sequence(20261116), sequence(20261117), 'different seeds must differ');
 
-const { LevelSystem } = await import('../src/game/LevelSystem.js');
+const { LevelSystem, STAGES, songPos, sixteenth } = await import('../src/game/LevelSystem.js');
+// The soundtrack and the stages share one clock: every stage is whole bars, so drops land on a downbeat
+for (let i = 0; i < STAGES.length - 1; i++) {
+  const bars = (STAGES[i + 1].time - STAGES[i].time) * STAGES[i].bpm / 240;
+  assert.ok(Math.abs(bars - Math.round(bars)) < 1e-9, `stage ${i} is ${bars} bars`);
+}
+{
+  let prev = -1;
+  for (let n = 0; n < 2400; n++) {
+    const s = sixteenth(n);
+    assert.ok(s.time > prev, `16th ${n} must come after the one before`);
+    assert.ok(Math.abs(songPos(s.time + 1e-9).beats - n / 4) < 1e-6, `16th ${n} must sit on the song grid`);
+    if (s.k === 0 && n > 0) assert.equal(songPos(s.time + 1e-9).bars, 0, `stage ${s.stage} must open on its first bar`);
+    prev = s.time;
+  }
+}
 // Rotation flips must not depend on a previous run either
 {
   const flips = (dirty) => {

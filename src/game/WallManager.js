@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { INK, ACCENT } from '../palette.js';
+import { DATA } from '../palette.js';
 
 /**
  * WallManager — rings of wall that shrink toward the center.
@@ -37,8 +37,8 @@ export class WallManager {
 
     this.geoCache = new Map(); // sides -> sector geometry
 
-    this.material = new THREE.MeshBasicMaterial({ color: INK });
-    this.killerMaterial = new THREE.MeshBasicMaterial({ color: ACCENT });
+    this.material = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(DATA.wall, 0, 0) });
+    this.killerMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(DATA.wall, 1, 0) });
   }
 
   reset(sides = 6, playerAngle = Math.PI / 2, speed = 5) {

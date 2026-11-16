@@ -1,13 +1,13 @@
 import * as THREE from 'three';
-import { ACCENT } from '../palette.js';
 
 const TAU = Math.PI * 2;
+const SOLID = new THREE.Color().setRGB(0, 0, 1); // data color: drawn crisp, not as glyphs
 const SHARDS = 24;
 
 /** Canvas feedback: a ripple when you graze a wall, a burst when you crash */
 export class ParticleSystem {
   constructor(scene) {
-    this.rippleMat = new THREE.MeshBasicMaterial({ color: ACCENT, transparent: true, opacity: 0, depthWrite: false });
+    this.rippleMat = new THREE.MeshBasicMaterial({ color: SOLID, transparent: true, opacity: 0, depthWrite: false });
     this.rippleMesh = new THREE.Mesh(new THREE.RingGeometry(0.2, 0.235, 48), this.rippleMat);
     scene.add(this.rippleMesh);
     this.rippleLife = 0;
@@ -17,7 +17,7 @@ export class ParticleSystem {
     this.vel = new Float32Array(SHARDS * 2);
     this.geo = new THREE.BufferGeometry();
     this.geo.setAttribute('position', new THREE.BufferAttribute(this.pos, 3));
-    this.burstMat = new THREE.PointsMaterial({ color: ACCENT, size: 7, sizeAttenuation: false, transparent: true, opacity: 0 });
+    this.burstMat = new THREE.PointsMaterial({ color: SOLID, size: 7, sizeAttenuation: false, transparent: true, opacity: 0 });
     this.points = new THREE.Points(this.geo, this.burstMat);
     this.points.frustumCulled = false;
     scene.add(this.points);

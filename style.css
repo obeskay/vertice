@@ -1,10 +1,12 @@
 :root {
-  /* Same three colors as src/palette.js */
-  --paper: #f2efe9;
-  --ink: #24262b;
-  --ink-soft: rgba(36, 38, 43, 0.5);
-  --accent: #e5553a;
-  --line: rgba(0, 0, 0, 0.06);
+  --bg: #0a0a0c;
+  --text: #f2efe9;
+  --text-soft: rgba(242, 239, 233, 0.5);
+  --glass: rgba(255, 255, 255, 0.06);
+  --line: rgba(255, 255, 255, 0.08);
+  /* The live scene's colors; src/main.js sets them from src/palette.js */
+  --pri: #ff6b3d;
+  --acc: #fff1d6;
 
   --ease-hydraulic-butter: linear(
     0, 0.015, 0.06 2.5%, 0.134 5.2%, 0.234 8.2%, 0.354 11.6%,
@@ -14,7 +16,7 @@
   --duration-hydraulic: 320ms;
   --fade: opacity var(--duration-hydraulic) var(--ease-hydraulic-butter);
 
-  color-scheme: light;
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; margin: 0; }
@@ -22,8 +24,8 @@
 html, body {
   height: 100%;
   overflow: hidden;
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--bg);
+  color: var(--text);
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-variant-numeric: tabular-nums;
   -webkit-user-select: none;
@@ -60,18 +62,31 @@ html, body {
   font-size: clamp(28px, 6vw, 44px);
   font-weight: 650;
   letter-spacing: -0.02em;
-  /* Ink walls pass behind it: a paper chip keeps it readable */
-  padding: 0.05em 0.4em;
-  background: rgba(242, 239, 233, 0.92);
+  /* Glyph walls pass behind it: a dark chip keeps it readable */
+  padding: 0.05em 0.4em 0.12em;
+  background: rgba(10, 10, 12, 0.78);
   border: 1px solid var(--line);
   border-radius: 14px;
+  overflow: hidden;
   pointer-events: none;
   opacity: 0;
   transition: var(--fade), color var(--duration-hydraulic) var(--ease-hydraulic-butter);
 }
+/* Progress through the stage: fills toward the next drop */
+.time::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--pri);
+  transform: scaleX(var(--p, 0));
+  transform-origin: left;
+}
 body[data-state="playing"] .time,
 body[data-state="paused"] .time { opacity: 1; }
-.time.record { color: var(--accent); }
+.time.record { color: var(--acc); }
 
 /* One overlay for menu, pause and result; elements sit straight on it */
 #overlay {
@@ -82,7 +97,7 @@ body[data-state="paused"] .time { opacity: 1; }
   align-items: center;
   justify-content: center;
   gap: 18px;
-  background: rgba(242, 239, 233, 0.72);
+  background: rgba(8, 8, 10, 0.55);
   transition: var(--fade);
 }
 body[data-state="playing"] #overlay {
@@ -107,7 +122,7 @@ body[data-state="playing"] #overlay {
   line-height: 1;
 }
 .result .icon { display: none; font-size: 0.5em; stroke-width: 2.5; }
-.result.record { color: var(--accent); }
+.result.record { color: var(--pri); }
 .result.record .icon { display: block; }
 
 .best {
@@ -116,7 +131,7 @@ body[data-state="playing"] #overlay {
   gap: 8px;
   font-size: 18px;
   font-weight: 600;
-  color: var(--ink-soft);
+  color: var(--text-soft);
 }
 .best[hidden] { display: none; }
 
@@ -143,7 +158,7 @@ body:not([data-state="menu"]) .wordmark { display: none; }
 }
 .play:focus-visible,
 .sound:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--pri);
   outline-offset: 3px;
 }
 
@@ -151,11 +166,11 @@ body:not([data-state="menu"]) .wordmark { display: none; }
   width: 76px;
   height: 76px;
   margin-top: 8px;
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--text);
+  color: var(--bg);
   font-size: 30px;
 }
-.play:hover { background: #3a3d44; }
+.play:hover { background: #ffffff; }
 .play:active { transform: scale(0.95); }
 .icon-play { fill: currentColor; transform: translateX(2px); }
 .icon-retry { display: none; }
@@ -167,7 +182,7 @@ body[data-state="over"] .icon-retry { display: block; }
   position: absolute;
   top: 50%;
   font-size: 32px;
-  color: var(--ink-soft);
+  color: var(--text-soft);
   transform: translateY(-50%);
   display: none;
 }
@@ -181,12 +196,12 @@ body[data-state="menu"] .hint { display: block; }
   right: max(16px, env(safe-area-inset-right));
   width: 44px;
   height: 44px;
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--glass);
   border: 1px solid var(--line);
-  color: var(--ink);
+  color: var(--text);
   font-size: 20px;
 }
-.sound:hover { background: rgba(255, 255, 255, 0.9); }
+.sound:hover { background: rgba(255, 255, 255, 0.12); }
 .sound .icon-off,
 .sound.off .icon-on { display: none; }
 .sound.off .icon-off { display: block; }

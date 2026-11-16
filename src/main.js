@@ -3,9 +3,10 @@ import { AudioEngine } from './engine/AudioEngine.js';
 import { ParticleSystem } from './engine/ParticleSystem.js';
 import { Player } from './game/Player.js';
 import { WallManager } from './game/WallManager.js';
-import { LevelSystem } from './game/LevelSystem.js';
+import { LevelSystem, songPos } from './game/LevelSystem.js';
 import { ScoreSystem } from './game/ScoreSystem.js';
 import { HUDManager } from './ui/HUDManager.js';
+import { SCENES } from './palette.js';
 
 /**
  * VÉRTICE — steer around the center, slip through the gaps, last as long as
@@ -18,16 +19,18 @@ const CRASH_LENGTH = 0.95;  // s of slow motion before the result shows
 const CHAIN_WINDOW = 1.5;   // s between grazes that still climbs the graze note
 const STEER_KEYS = { ArrowLeft: 1, KeyA: 1, ArrowRight: -1, KeyD: -1 };
 const START_KEYS = new Set(['Space', 'Enter', 'KeyR', ...Object.keys(STEER_KEYS)]);
+const TILT = [0, 0.35, 0.6, 0.8, 1, 1]; // pseudo-3D lean per stage
 
 class Game {
   constructor() {
     this.state = 'menu'; // menu | playing | dying | paused | over
 
-    this.renderer = new Renderer('canvas-container');
+    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    this.renderer = new Renderer('canvas-container', this.reducedMotion);
     this.audio = new AudioEngine();
-    this.particles = new ParticleSystem(this.renderer.scene);
-    this.player = new Player(this.renderer.scene);
-    this.walls = new WallManager(this.renderer.scene);
+    this.particles = new ParticleSystem(this.renderer.world);
+    this.player = new Player(this.renderer.world);
+    this.walls = new WallManager(this.renderer.world);
     this.level = new LevelSystem();
     this.score = new ScoreSystem();
     this.hud = new HUDManager({
@@ -37,9 +40,9 @@ class Game {
     this.hud.setSound(!this.audio.muted);
     this.hud.setState('menu', this.score);
     this.renderer.setSides(this.level.sides);
+    this.setScene(0, false);
 
     this.held = new Map(); // key code or pointer id -> steer direction, newest last
-    this.reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     this.accumulator = 0;
     this.hitStop = 0;
     this.crashTime = 0;
@@ -120,6 +123,7 @@ class Game {
     this.player.reset();
     this.walls.reset(this.level.sides, this.player.angle, this.level.speed);
     this.renderer.setSides(this.level.sides);
+    this.setScene(0);
     this.particles.clear();
     this.accumulator = 0;
     this.hitStop = 0;
@@ -129,8 +133,17 @@ class Game {
     this.beaten = false;
     this.hud.setBeaten(false);
     this.hud.setTime(0);
+    this.hud.setProgress(0);
     this.hud.setState('playing', this.score);
     this.audio.start();
+  }
+
+  /** A new glyph set and duotone sweeps out from the center (a drop) */
+  setScene(i, sweep = true) {
+    this.sceneIndex = i;
+    this.renderer.setScene(i, sweep);
+    const s = SCENES[i % SCENES.length];
+    this.hud.setColors(s.pri, s.acc);
   }
 
   pause() {
@@ -163,10 +176,7 @@ class Game {
     this.level.update(this.score.time, dt);
     const { sides, speed } = this.level;
 
-    if (sides !== this.renderer.sides) {
-      this.renderer.setSides(sides);
-      this.audio.playChime();
-    }
+    if (sides !== this.renderer.sides) this.renderer.setSides(sides);
     if (!this.beaten && this.score.prevBest > 0 && this.score.time > this.score.prevBest) {
       this.beaten = true;
       this.hud.setBeaten(true);
@@ -189,6 +199,23 @@ class Game {
     this.rotation += this.level.rotationSpeed * dt;
 
     if (result.collision) this.crash(result.collision);
+  }
+
+  /** Visual beat from the song position: pulse on each beat, scene per stage, HUD progress */
+  beat() {
+    const t = this.score.time;
+    if (this.state === 'menu') return { pulse: 0, tilt: 0, time: 0 };
+    const pos = songPos(t);
+    const last = pos.stage === SCENES.length - 1;
+    const scene = last ? pos.stage + Math.floor(pos.bars / 16) : pos.stage;
+    if (this.state === 'playing') {
+      if (scene !== this.sceneIndex) this.setScene(scene);
+      this.hud.setProgress(last ? (pos.stageBeats % 64) / 64 : pos.stageBeats / (pos.stageBars * 4));
+    }
+    // The last bar of a stage builds: the kick drops out for its second half, so does the pulse
+    const build = pos.bars === pos.stageBars - 1 || (last && pos.bars % 16 === 15);
+    const quiet = this.state !== 'playing' || (build && pos.stageBeats % 4 >= 2);
+    return { pulse: quiet ? 0 : Math.exp(-(pos.beats % 1) * 7), tilt: TILT[pos.stage], time: t };
   }
 
   loop(now) {
@@ -223,7 +250,7 @@ class Game {
     const alpha = this.state === 'playing' ? Math.min(1, this.accumulator / SIM_DT) : 1;
     this.player.render(alpha, dt);
     this.walls.render(alpha);
-    this.renderer.render(dt, this.prevRotation + (this.rotation - this.prevRotation) * alpha);
+    this.renderer.render(dt, this.prevRotation + (this.rotation - this.prevRotation) * alpha, this.beat());
 
     requestAnimationFrame((t) => this.loop(t));
   }

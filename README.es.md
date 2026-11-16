@@ -1,9 +1,9 @@
 # VÉRTICE
 
-Un arcade al estilo Super Hexagon para el navegador, sencillo como un botón. Los muros se cierran hacia el centro; guía tu nave por los huecos tanto como aguantes. Un solo modo, sin menús, y la dificultad sube poco a poco mientras más duras.
+Un arcade al estilo Super Hexagon para el navegador, sencillo como un botón. Los muros se cierran hacia el centro; guía tu nave por los huecos tanto como aguantes. Toda la pantalla se dibuja con glifos, el soundtrack lleva la partida y cada cambio de etapa cae en un drop.
 
 <p align="center">
-  <a href="https://obeskay.github.io/vertice/"><img src="docs/media/vertice-demo.gif" alt="VÉRTICE: una nave naranja orbitando un hexágono oscuro mientras se cierran anillos oscuros sobre un fondo claro" width="560"></a>
+  <a href="https://obeskay.github.io/vertice/"><img src="docs/media/vertice-demo.gif" alt="VÉRTICE: una nave blanca orbitando el centro mientras se cierran anillos de glifos; los colores y los glifos cambian en cada etapa" width="560"></a>
 </p>
 
 <p align="center">
@@ -25,10 +25,11 @@ Abre `http://localhost:8089`. GitHub Pages publica `main` tal cual.
 ## Cómo se juega
 
 - Toca el botón de jugar (o cualquier tecla de giro, `Espacio` o `Enter`) y sobrevive. Tu tiempo es tu marca; el navegador guarda tu mejor tiempo.
-- Cada 15 a 30 segundos la partida sube un escalón: los muros van más rápido, el giro es más fuerte y la figura gana lados (6 → 7 → 8 → 10 → 12). Después de unos 105 s sigue subiendo sola, despacio.
+- La partida es una sola canción en seis etapas, cada una con compases completos. Cada 15 a 30 segundos el último compás sube la tensión (barrido, redoble, se va el bombo) y la siguiente etapa abre con un drop: un juego de glifos y colores nuevo sale desde el centro, el tempo sube (128 → 170 bpm), los muros van más rápido, el giro es más fuerte y la figura gana lados (6 → 7 → 8 → 10 → 12). Después de unos 105 s sigue subiendo sola, despacio.
+- El mundo gira fuerte, se voltea de golpe en un tiempo fuerte, late con cada pulso y se inclina en 3D conforme suben las etapas. Una barra delgada bajo el cronómetro se llena hacia el siguiente drop.
 - Si pasas a un pelo del borde de un muro suena una nota; encadena esos roces y la nota sube por la escala.
-- El muro que te mata se pinta de naranja. Cualquier tecla de giro o un toque empieza otra vez un momento después; dejar una tecla apretada durante el choque nunca reinicia por accidente.
-- La música es un arpegio suave en La menor que acelera con la partida. Todos los sonidos, de los roces al choque, usan la misma voz y la misma tonalidad. El botón de la bocina lo silencia y recuerda tu elección.
+- El muro que te mata se enciende con el acento de la etapa y la canción se frena como cinta detenida. Cualquier tecla de giro o un toque empieza otra vez un momento después; dejar una tecla apretada durante el choque nunca reinicia por accidente.
+- El soundtrack se sintetiza en vivo con WebAudio: bombo, bajo corrido, palmas, un arpegio en semicorcheas y un gancho de lead entran conforme avanza la partida. El botón de la bocina lo silencia y recuerda tu elección. Con movimiento reducido se quitan la inclinación y el zoom, y el pulso y el giro se suavizan.
 
 ## Controles
 
@@ -44,13 +45,13 @@ Abre `http://localhost:8089`. GitHub Pages publica `main` tal cual.
 ```
 index.html, style.css     Un overlay (menú, pausa, resultado), el cronómetro y dos botones
 src/main.js               Loop de paso fijo a 240 Hz, entradas y máquina de estados (menu, playing, dying, paused, over)
-src/palette.js            Los tres colores: papel, tinta y acento
-src/engine/Renderer.js    Escena ortográfica de Three.js: gajos de fondo y polígono central
-src/engine/AudioEngine.js Música y efectos con WebAudio, todo con una sola voz de mazo
+src/palette.js            Un juego de glifos y un duotono por etapa
+src/engine/Renderer.js    El juego dibujado como datos y luego un pase de glifos a pantalla completa: barridos de escena, pulso, inclinación
+src/engine/AudioEngine.js El soundtrack y los efectos, programados desde el reloj de la partida
 src/engine/ParticleSystem.js Onda del roce y estallido del choque
 src/game/Player.js        Nave en órbita con contraviraje
 src/game/WallManager.js   Patrones de anillos, espaciado justo y colisión por barrido
-src/game/LevelSystem.js   La rampa de dificultad y los cambios de giro
+src/game/LevelSystem.js   Las etapas, el reloj de la canción (compases y semicorcheas) y los cambios de giro
 src/game/ScoreSystem.js   Tiempo de la partida y mejor tiempo
 src/ui/HUDManager.js      Estado del DOM del overlay, cronómetro y botón de sonido
 ```
@@ -63,7 +64,7 @@ src/ui/HUDManager.js      Estado del DOM del overlay, cronómetro y botón de so
 node scripts/check-walls.mjs
 ```
 
-Revisa los roces, el primer anillo justo, el espaciado de anillos a velocidad baja y alta, los patrones con semilla, los cambios de giro y que la rampa de dificultad nunca baje.
+Revisa los roces, el primer anillo justo, el espaciado de anillos a velocidad baja y alta, los patrones con semilla, los cambios de giro, que la rampa de dificultad nunca baje y que cada etapa caiga en la rejilla de compases de la canción.
 
 ## Licencia
 

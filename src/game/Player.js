@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { ACCENT } from '../palette.js';
 
 const TAU = Math.PI * 2;
+const SOLID = new THREE.Color().setRGB(0, 0, 1); // data color: drawn crisp, not as glyphs
 const wrap = (a) => ((a % TAU) + TAU) % TAU;
 
 /**
@@ -26,7 +26,7 @@ export class Player {
     shape.lineTo(0, -0.05);
     shape.lineTo(0.13, -0.11);
     shape.closePath();
-    this.ship = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({ color: ACCENT }));
+    this.ship = new THREE.Mesh(new THREE.ShapeGeometry(shape), new THREE.MeshBasicMaterial({ color: SOLID }));
     this.group = new THREE.Group();
     this.group.add(this.ship);
     scene.add(this.group);

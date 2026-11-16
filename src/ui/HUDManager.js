@@ -43,9 +43,24 @@ export class HUDManager {
     this.time.textContent = s;
   }
 
-  /** The running time turns accent once it passes the record */
+  /** The running time takes the accent once it passes the record */
   setBeaten(on) {
     this.time.classList.toggle('record', on);
+  }
+
+  /** How far into the current stage: a thin bar under the time fills toward the next drop */
+  setProgress(p) {
+    const v = p.toFixed(3);
+    if (v === this._progress) return;
+    this._progress = v;
+    this.time.style.setProperty('--p', v);
+  }
+
+  /** The HUD takes the live scene's colors (rgb triplets 0..1) */
+  setColors(pri, acc) {
+    const css = (c) => `rgb(${c.map((x) => Math.round(x * 255)).join(' ')})`;
+    document.documentElement.style.setProperty('--pri', css(pri));
+    document.documentElement.style.setProperty('--acc', css(acc));
   }
 
   setSound(on) {
