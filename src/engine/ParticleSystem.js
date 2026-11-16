@@ -24,7 +24,7 @@ export class ParticleSystem {
   }
 
   ripple(p, size = 1) {
-    this.rippleMesh.position.set(p.x, p.y, 0.28);
+    this.rippleMesh.position.set(p.x, p.y, 0.04);
     this.rippleLife = 1;
     this.rippleSize = size;
   }
@@ -33,7 +33,7 @@ export class ParticleSystem {
     for (let i = 0; i < SHARDS; i++) {
       const a = (i / SHARDS) * TAU + Math.random() * 0.3;
       const v = 2 + Math.random() * 3;
-      this.pos.set([p.x, p.y, 0.29], i * 3);
+      this.pos.set([p.x, p.y, 0.045], i * 3);
       this.vel[i * 2] = Math.cos(a) * v;
       this.vel[i * 2 + 1] = Math.sin(a) * v;
     }

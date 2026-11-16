@@ -6,7 +6,7 @@
  * creeping up, so every run ends.
  */
 export const STAGES = [
-  { time: 0,   bpm: 128,   sides: 6,  speed: 4.4, spin: 0.9 },
+  { time: 0,   bpm: 128,   sides: 4,  speed: 3.5, spin: 0.6 }, // a gentle square to learn the keys
   { time: 15,  bpm: 128,   sides: 6,  speed: 5.1, spin: 1.2 },
   { time: 30,  bpm: 144,   sides: 7,  speed: 5.9, spin: 1.5 },
   { time: 50,  bpm: 153.6, sides: 8,  speed: 6.8, spin: 1.8 },
@@ -73,9 +73,9 @@ export class LevelSystem {
     }
     this.boost = Math.max(0, this.boost - dt * 1.2);
 
-    // The world snaps into reverse on a downbeat every 1–3 bars
+    // The world snaps into reverse on a downbeat every 1–3 bars, never in the opening stage
     const { bar } = songPos(t);
-    if (bar >= this.nextFlipBar) {
+    if (i > 0 && bar >= this.nextFlipBar) {
       this.nextFlipBar = bar + 1 + Math.floor(this.rng() * 3);
       this.rotationTarget *= -1;
     }

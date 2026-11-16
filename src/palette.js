@@ -1,18 +1,20 @@
-// One scene per stage of the run: a glyph set and a duotone, the way a music
-// visualizer swaps scenes on a drop. The renderer draws the game as data
-// (see DATA) and the glyph pass paints it with the current scene.
-// pri: the walls (the brightest glyphs lean from here toward white)
-// sec: shadows and the faint background dots
-// acc: the wall that kills you, and the HUD's live color
+// One scene per stage of the run: a glyph set and a soft color field, swapped
+// on each drop. The glyphs go from angular to round as the shape gains sides:
+// the polygon keeps reaching for a circle it never becomes.
+// bg: the page; field (fa, fb): two soft blobs that tint every glyph, turning
+// with the world; ink: what the brightest glyphs (the walls) lean toward;
+// acc: the wall that kills you, and the HUD's live color.
 const rgb = (hex) => [(hex >> 16 & 255) / 255, (hex >> 8 & 255) / 255, (hex & 255) / 255];
+const scene = (glyphs, bg, ink, fa, fb, acc) =>
+  ({ glyphs, bg: rgb(bg), ink: rgb(ink), fa: rgb(fa), fb: rgb(fb), acc: rgb(acc) });
 
 export const SCENES = [
-  { glyphs: '·∙•◦○◎●■█',   pri: rgb(0xff6b3d), sec: rgb(0x4a1410), acc: rgb(0xfff1d6) },
-  { glyphs: '·:░▒▓█▀▄▌▐',  pri: rgb(0x42d4ff), sec: rgb(0x0b2350), acc: rgb(0xff7a45) },
-  { glyphs: '·.:-=+*#%@',  pri: rgb(0xb9f53a), sec: rgb(0x173d0d), acc: rgb(0xff4f8b) },
-  { glyphs: '⠁⠂⠃⠇⠏⠟⠿⡿⣿', pri: rgb(0xff4f8b), sec: rgb(0x46103f), acc: rgb(0x48e6ff) },
-  { glyphs: '·─│┼╳═║╬▓█',  pri: rgb(0xffc23a), sec: rgb(0x4a2208), acc: rgb(0x6e8bff) },
-  { glyphs: '·∴∷※◈◆▲■█',   pri: rgb(0xb18cff), sec: rgb(0x1f0f55), acc: rgb(0xffd23a) }
+  scene('.:-=+*#%@',  0x0b1410, 0xb8f5c8, 0x3e9a6c, 0x2f7f8a, 0xffb454), // phosphor
+  scene('·.+┼╬▒▓█',   0x0a1230, 0xdce8ff, 0x4f7bff, 0x8a6bff, 0xff5a3c), // blueprint
+  scene('·░▒▓█',      0x1a0d12, 0xffd9d0, 0xe0445a, 0xff8f5a, 0x7ce0c3), // tulip
+  scene('⠁⠃⠇⠏⠟⠿⡿⣿',   0x140d05, 0xffe6b5, 0xff9a2e, 0xd9482b, 0x6fd3ff), // sodium
+  scene('·∘○◍◉●',     0x0f0a1f, 0xeadfff, 0x8b5cff, 0x3fa9ff, 0xd8ff5a), // violet
+  scene('·∙•◦○◯●',    0x061016, 0xe8faff, 0x48c9e8, 0xff6fb5, 0xfff05a)  // ice
 ];
 
 export const SHIP = rgb(0xfff7ec);

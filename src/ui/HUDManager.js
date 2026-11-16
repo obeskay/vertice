@@ -15,13 +15,15 @@ export class HUDManager {
     this.play = $('play');
     this.sound = $('sound');
     this.overlay = $('overlay');
+    this.reach = $('reach');
+    this.reachShape = $('reach-shape');
     this._shown = '';
     this.play.addEventListener('click', onPlay);
     this.sound.addEventListener('click', onSound);
   }
 
-  /** state: menu | playing | paused | over */
-  setState(state, score) {
+  /** state: menu | playing | paused | over; sides: the shape reached, shown on the result */
+  setState(state, score, sides = 0) {
     document.body.dataset.state = state;
     // Faded-out controls must not take focus during a run
     this.overlay.inert = this.sound.inert = state === 'playing';
@@ -34,6 +36,18 @@ export class HUDManager {
     this.result.classList.toggle('record', record);
     this.bestValue.textContent = score.best.toFixed(2);
     this.best.hidden = score.best <= 0 || record;
+    if (state === 'over') this.setReach(sides);
+  }
+
+  /** A regular polygon with one vertex on top, redrawn on every result */
+  setReach(sides) {
+    const pts = Array.from({ length: sides }, (_, i) => {
+      const a = -Math.PI / 2 + (i / sides) * Math.PI * 2;
+      return `${Math.cos(a).toFixed(4)},${Math.sin(a).toFixed(4)}`;
+    });
+    this.reachShape.setAttribute('points', pts.join(' '));
+    this.reach.setAttribute('aria-label', `${sides} lados`);
+    // display: none -> block restarts the draw-on animation, so each result draws once
   }
 
   setTime(t) {
@@ -57,10 +71,14 @@ export class HUDManager {
   }
 
   /** The HUD takes the live scene's colors (rgb triplets 0..1) */
-  setColors(pri, acc) {
+  setColors(pri, acc, bg) {
     const css = (c) => `rgb(${c.map((x) => Math.round(x * 255)).join(' ')})`;
-    document.documentElement.style.setProperty('--pri', css(pri));
-    document.documentElement.style.setProperty('--acc', css(acc));
+    const root = document.documentElement.style;
+    root.setProperty('--pri', css(pri));
+    root.setProperty('--acc', css(acc));
+    root.setProperty('--bg', css(bg));
+    this.themeColor ??= document.querySelector('meta[name="theme-color"]');
+    this.themeColor?.setAttribute('content', css(bg)); // the browser chrome follows the scene
   }
 
   setSound(on) {

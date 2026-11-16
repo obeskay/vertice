@@ -60,7 +60,7 @@ export class Player {
     if (d > Math.PI) d -= TAU;
     else if (d < -Math.PI) d += TAU;
     const a = this.prevAngle + d * alpha;
-    this.group.position.set(Math.cos(a) * this.radius, Math.sin(a) * this.radius, 0.3);
+    this.group.position.set(Math.cos(a) * this.radius, Math.sin(a) * this.radius, 0.05);
     this.group.rotation.z = a - Math.PI / 2;
     const lean = -Math.max(-1, Math.min(1, this.vel / this.speed)) * 0.35; // leans into the turn
     this.tilt += (lean - this.tilt) * Math.min(1, dt * 25);

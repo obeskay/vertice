@@ -6,7 +6,11 @@
   <meta name="theme-color" content="#0a0a0c">
   <title>Vértice</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%2324262b%27/%3E%3Cpath d=%27M16 5l9.5 5.5v11L16 27l-9.5-5.5v-11z%27 fill=%27none%27 stroke=%27%23e5553a%27 stroke-width=%273%27/%3E%3C/svg%3E">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <script type="importmap">
     { "imports": { "three": "./vendor/three.module.js" } }
   </script>
@@ -18,6 +22,12 @@
 
   <div id="overlay">
     <h1 class="wordmark">VÉRTICE</h1>
+
+    <!-- The shape you reached, inside the circle it keeps reaching for -->
+    <svg id="reach" class="reach" viewBox="-1.3 -1.3 2.6 2.6" role="img" aria-label="">
+      <circle r="1.18" pathLength="1"/>
+      <polygon id="reach-shape" pathLength="1"/>
+    </svg>
 
     <p id="result" class="result" aria-live="polite">
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
@@ -34,6 +44,7 @@
       <svg class="icon icon-retry" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
     </button>
 
+    <canvas id="hint" class="hint-rive" aria-hidden="true"></canvas>
     <svg class="icon hint hint-left" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
     <svg class="icon hint hint-right" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
   </div>

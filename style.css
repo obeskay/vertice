@@ -125,6 +125,28 @@ body[data-state="playing"] #overlay {
 .result.record { color: var(--pri); }
 .result.record .icon { display: block; }
 
+.reach {
+  width: clamp(56px, 12vw, 80px);
+  height: auto;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: none;
+}
+body[data-state="over"] .reach { display: block; }
+.reach circle {
+  stroke: var(--text-soft);
+  stroke-width: 0.09;
+  stroke-dasharray: 0 0.03125; /* 32 dots */
+}
+.reach polygon {
+  stroke: var(--pri);
+  stroke-width: 0.09;
+  stroke-dasharray: 1;
+  animation: reach-draw calc(var(--duration-hydraulic) * 2) var(--ease-hydraulic-butter) both;
+}
+@keyframes reach-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+
 .best {
   display: flex;
   align-items: center;
@@ -189,6 +211,14 @@ body[data-state="over"] .icon-retry { display: block; }
 .hint-left { left: max(4vw, env(safe-area-inset-left)); }
 .hint-right { right: max(4vw, env(safe-area-inset-right)); }
 body[data-state="menu"] .hint { display: block; }
+/* Once the Rive demo is ready it replaces the chevrons, under the play button */
+.hint-rive {
+  width: 176px;
+  height: 64px;
+  display: none;
+}
+body.hinted[data-state="menu"] .hint-rive { display: block; }
+body.hinted .hint { display: none; }
 
 .sound {
   position: fixed;
@@ -213,3 +243,7 @@ body[data-state="playing"] .sound {
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0ms !important; }
 }
+
+/* Embedded: the host page frames the game and owns the sound toggle */
+body.embed .wordmark,
+body.embed .sound { display: none; }

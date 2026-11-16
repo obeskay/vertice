@@ -53,6 +53,15 @@ assert.equal(pass(sector * 0.5).hit, true, 'blocked sector must collide');
   assert.equal(w.activeRings[0].blockedSectors[1], false, 'mercy gap must sit under the player');
   assert.ok(w._planned.newPattern, 'mercy is one ring, then a real pattern starts');
 }
+{
+  // The opening square puts the spawn angle on a sector edge: the first ring must still pass
+  const w = new WallManager(new THREE.Scene());
+  w.rng = mulberry32(1);
+  w.reset(4, Math.PI / 2, 3.5);
+  let hit = false;
+  for (let i = 0; i < 240 * 3; i++) if (w.update(DT, 3.5, 4, hitbox(Math.PI / 2), true).collision) hit = true;
+  assert.equal(hit, false, 'a ship spawned on a sector edge must clear the first ring');
+}
 
 // Same seed, same walls and spacing
 function sequence(seed, n = 200, speed = 4.3) {

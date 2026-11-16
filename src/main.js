@@ -7,6 +7,7 @@ import { LevelSystem, songPos } from './game/LevelSystem.js';
 import { ScoreSystem } from './game/ScoreSystem.js';
 import { HUDManager } from './ui/HUDManager.js';
 import { SCENES } from './palette.js';
+import { loadHint } from './ui/hint.js';
 
 /**
  * VÉRTICE — steer around the center, slip through the gaps, last as long as
@@ -19,7 +20,16 @@ const CRASH_LENGTH = 0.95;  // s of slow motion before the result shows
 const CHAIN_WINDOW = 1.5;   // s between grazes that still climbs the graze note
 const STEER_KEYS = { ArrowLeft: 1, KeyA: 1, ArrowRight: -1, KeyD: -1 };
 const START_KEYS = new Set(['Space', 'Enter', 'KeyR', ...Object.keys(STEER_KEYS)]);
-const TILT = [0, 0.35, 0.6, 0.8, 1, 1]; // pseudo-3D lean per stage
+const TILT = [0, 0.42, 0.66, 0.83, 0.92, 1]; // perspective lean per stage, 1 = full
+
+// ?embed=1: the game inside another page. That page frames it and owns the sound
+// toggle; the two talk only to each other (see README, Embed).
+const EMBED = new URLSearchParams(location.search).has('embed') && window.parent !== window;
+// Only a web origin: a sandboxed or file: parent reads "null", which postMessage rejects
+const parentOrigin = location.ancestorOrigins?.[0] ?? (document.referrer && new URL(document.referrer).origin);
+const HOST = EMBED && /^https?:\/\//.test(parentOrigin) ? parentOrigin : null;
+const tell = (msg) => HOST && window.parent.postMessage({ source: 'vertice', ...msg }, HOST);
+document.body.classList.toggle('embed', Boolean(HOST)); // no host to talk to: keep the own sound button
 
 class Game {
   constructor() {
@@ -38,7 +48,7 @@ class Game {
       onSound: () => this.hud.setSound(!this.audio.toggleMute())
     });
     this.hud.setSound(!this.audio.muted);
-    this.hud.setState('menu', this.score);
+    this.show('menu');
     this.renderer.setSides(this.level.sides);
     this.setScene(0, false);
 
@@ -56,9 +66,12 @@ class Game {
   }
 
   setupInput() {
+    // Mobile browsers only unlock audio on the release of a touch (iOS: touchend); a key works too
+    const unlock = () => { if (this.state === 'playing') this.audio.init(); };
     window.addEventListener('keydown', (e) => {
       // A focused button handles its own Space/Enter (the sound toggle must not start a run)
       if ((e.code === 'Space' || e.code === 'Enter') && e.target.closest?.('button')) return;
+      unlock();
       if (START_KEYS.has(e.code) && this.state !== 'menu' && this.state !== 'over') e.preventDefault();
       if (e.repeat) return; // a key held through a crash must not restart
       if (e.code === 'Escape' || e.code === 'KeyP') {
@@ -77,8 +90,6 @@ class Game {
       this.primary();
       this.press(e.pointerId, e.clientX < window.innerWidth / 2 ? 1 : -1);
     });
-    // Mobile browsers only unlock audio on the release of a touch (iOS: touchend)
-    const unlock = () => { if (this.state === 'playing') this.audio.init(); };
     const release = (e) => {
       this.held.delete(e.pointerId);
       unlock();
@@ -86,13 +97,21 @@ class Game {
     window.addEventListener('pointerup', release);
     window.addEventListener('pointercancel', release);
     window.addEventListener('touchend', unlock);
+    // iOS Safari shows its long-press loupe even with user-select: none (WebKit
+    // 231161); only a cancelled touchstart stops it. Pointer events still fire,
+    // and buttons keep their click.
+    document.addEventListener('touchstart', (e) => {
+      if (e.cancelable && !e.target.closest('button')) e.preventDefault();
+    }, { passive: false });
 
     window.addEventListener('blur', () => {
       this.held.clear();
       if (this.state === 'playing') this.pause();
     });
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden && this.state === 'playing') this.pause();
+      if (!document.hidden) return;
+      this.held.clear(); // a release lost while hidden must not steer after resume
+      if (this.state === 'playing') this.pause();
     });
   }
 
@@ -116,6 +135,8 @@ class Game {
   }
 
   start() {
+    this.hint?.done();
+    this.hint = null;
     this.state = 'playing';
     document.activeElement?.blur();
     this.score.reset();
@@ -134,8 +155,13 @@ class Game {
     this.hud.setBeaten(false);
     this.hud.setTime(0);
     this.hud.setProgress(0);
-    this.hud.setState('playing', this.score);
+    this.show('playing');
     this.audio.start();
+  }
+
+  show(state, sides) {
+    this.hud.setState(state, this.score, sides);
+    tell({ type: 'state', state, time: this.score.time, best: this.score.best });
   }
 
   /** A new glyph set and duotone sweeps out from the center (a drop) */
@@ -143,20 +169,20 @@ class Game {
     this.sceneIndex = i;
     this.renderer.setScene(i, sweep);
     const s = SCENES[i % SCENES.length];
-    this.hud.setColors(s.pri, s.acc);
+    this.hud.setColors(s.fa, s.acc, s.bg);
   }
 
   pause() {
     this.state = 'paused';
     this.audio.suspend();
-    this.hud.setState('paused', this.score);
+    this.show('paused');
   }
 
   resume() {
     this.state = 'playing';
     document.activeElement?.blur();
     this.audio.resume();
-    this.hud.setState('playing', this.score);
+    this.show('playing');
   }
 
   crash(ring) {
@@ -204,7 +230,7 @@ class Game {
   /** Visual beat from the song position: pulse on each beat, scene per stage, HUD progress */
   beat() {
     const t = this.score.time;
-    if (this.state === 'menu') return { pulse: 0, tilt: 0, time: 0 };
+    if (this.state === 'menu') return { pulse: 0, tilt: 0 };
     const pos = songPos(t);
     const last = pos.stage === SCENES.length - 1;
     const scene = last ? pos.stage + Math.floor(pos.bars / 16) : pos.stage;
@@ -215,7 +241,7 @@ class Game {
     // The last bar of a stage builds: the kick drops out for its second half, so does the pulse
     const build = pos.bars === pos.stageBars - 1 || (last && pos.bars % 16 === 15);
     const quiet = this.state !== 'playing' || (build && pos.stageBeats % 4 >= 2);
-    return { pulse: quiet ? 0 : Math.exp(-(pos.beats % 1) * 7), tilt: TILT[pos.stage], time: t };
+    return { pulse: quiet ? 0 : Math.exp(-(pos.beats % 1) * 7), tilt: TILT[pos.stage] };
   }
 
   loop(now) {
@@ -241,7 +267,7 @@ class Game {
       this.rotation += this.level.rotationSpeed * dt * slow;
       if (this.crashTime >= CRASH_LENGTH) {
         this.state = 'over';
-        this.hud.setState('over', this.score);
+        this.show('over', this.level.sides);
       }
     }
 
@@ -249,6 +275,7 @@ class Game {
     this.particles.update(dt);
     const alpha = this.state === 'playing' ? Math.min(1, this.accumulator / SIM_DT) : 1;
     this.player.render(alpha, dt);
+    this.player.group.visible = this.state !== 'over'; // the result shows the shape reached, not the wreck
     this.walls.render(alpha);
     this.renderer.render(dt, this.prevRotation + (this.rotation - this.prevRotation) * alpha, this.beat());
 
@@ -257,5 +284,23 @@ class Game {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  window.__game = new Game();
+  // 'ready' goes out before the first state; the host's replies arrive after this
+  // task, when the listener below is already attached
+  tell({ type: 'ready' });
+  const game = window.__game = new Game();
+  if (!navigator.connection?.saveData) {
+    const later = window.requestIdleCallback ?? ((f) => setTimeout(f, 300));
+    later(() => { if (game.state === 'menu') game.hint = loadHint(document.getElementById('hint')); });
+  }
+  if (HOST) {
+    window.addEventListener('message', (e) => {
+      if (e.source !== window.parent || e.origin !== HOST || e.data?.source !== 'vertice-host') return;
+      const { type, on } = e.data;
+      if (type === 'play') game.primary();
+      else if (type === 'pause' && game.state === 'playing') game.pause();
+      else if (type === 'mute' && game.audio.muted !== Boolean(on)) game.hud.setSound(!game.audio.toggleMute());
+    });
+  } else if (!EMBED && 'serviceWorker' in navigator && isSecureContext) {
+    navigator.serviceWorker.register('sw.js');
+  }
 });

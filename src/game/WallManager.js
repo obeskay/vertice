@@ -12,6 +12,24 @@ const TAU = Math.PI * 2;
 const PLAYER_RAD_S = 11; // Player.speed
 const STATIC_PATTERNS = new Set(['SINGLE_GAP', 'TUNNEL', 'PULSAR']);
 
+// Walls fade in from the background's light between these world radii, so a
+// ring never pops in at a corner (or on the far side of a leaning plane)
+const FOG_FAR = 8.2;
+const FOG_NEAR = 6.5;
+const wallMaterial = (killer) => new THREE.ShaderMaterial({
+  vertexShader: `varying float vR;
+    void main() {
+      vec4 w = modelMatrix * vec4(position, 1.0);
+      vR = length(w.xyz); // rotations keep the radius; only the beat zoom nudges it
+      gl_Position = projectionMatrix * viewMatrix * w;
+    }`,
+  fragmentShader: `varying float vR;
+    void main() {
+      float f = 1.0 - smoothstep(${FOG_NEAR.toFixed(2)}, ${FOG_FAR.toFixed(2)}, vR);
+      gl_FragColor = vec4(mix(${DATA.wedge[2].toFixed(2)}, ${DATA.wall.toFixed(2)}, f), ${killer ? '1.0' : '0.0'}, 0.0, 1.0);
+    }`
+});
+
 export class WallManager {
   constructor(scene) {
     this.scene = scene;
@@ -37,8 +55,8 @@ export class WallManager {
 
     this.geoCache = new Map(); // sides -> sector geometry
 
-    this.material = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(DATA.wall, 0, 0) });
-    this.killerMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color().setRGB(DATA.wall, 1, 0) });
+    this.material = wallMaterial(false);
+    this.killerMaterial = wallMaterial(true);
   }
 
   reset(sides = 6, playerAngle = Math.PI / 2, speed = 5) {
@@ -196,21 +214,28 @@ export class WallManager {
   _planRing(sides) {
     const rng = this.rng;
     let newPattern = false;
+    let mercyEdge = -1;
     if (this._mercyFirstRing) {
       this._mercyFirstRing = false;
       this.currentPattern = 'SINGLE_GAP';
       this.patternLength = 1;
       this.patternStep = 0;
       const a = ((this._mercyAngle % TAU) + TAU) % TAU;
-      this.patternGapIndex = Math.floor(a / (TAU / sides)) % sides;
+      const at = a / (TAU / sides);
+      this.patternGapIndex = Math.floor(at) % sides;
+      // A spawn on a sector edge (4 sides puts π/2 right on one) opens the neighbour too
+      const into = at - Math.floor(at);
+      const reach = 0.17 / (TAU / sides); // hitbox half-arc plus a margin
+      if (into < reach) mercyEdge = (this.patternGapIndex + sides - 1) % sides;
+      else if (into > 1 - reach) mercyEdge = (this.patternGapIndex + 1) % sides;
       this.spiralDirection = rng() < 0.5 ? 1 : -1;
       this._stairsDir = this.spiralDirection;
     } else if (this.patternStep >= this.patternLength) {
       newPattern = true;
       const allPatterns = sides <= 3
         ? ['SINGLE_GAP', 'TUNNEL', 'SPIRAL', 'TWISTER']
-        : sides === 4
-        ? ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'STAGGER', 'ZIG_ZAG', 'TUNNEL', 'CANNON', 'TWISTER', 'DOUBLE_REFLEX']
+        : sides === 4 // only the opening stage: gentle moves while the player finds the keys
+        ? ['SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'STAGGER', 'TUNNEL']
         : [
             'SINGLE_GAP', 'SPIRAL', 'DOUBLE_FLANK', 'TRIPLE_GAP', 'STAGGER',
             'VORTEX', 'STAIRS', 'ZIG_ZAG', 'SLALOM', 'TUNNEL', 'CANNON',
@@ -372,6 +397,7 @@ export class WallManager {
     }
 
     this.patternStep++;
+    if (mercyEdge >= 0) blockedSectors[mercyEdge] = false;
     return { sides, blocked: blockedSectors, rotSpeed, newPattern };
   }
 
