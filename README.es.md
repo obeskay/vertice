@@ -1,25 +1,24 @@
 # VÉRTICE
 
-![cover](assets/cover.png)
+Arcade al estilo Super Hexagon para el navegador: orbita un polígono, cruza los muros que se cierran y encadena rozones. ES Modules nativos y Three.js, banda sonora darksynth procedural, sin build.
 
-[English](README.md) · Español
+<p align="center">
+  <a href="https://obeskay.github.io/vertice/"><img src="docs/media/vertice-demo.gif" alt="VÉRTICE: una nave orbitando un hexágono mientras se cierran anillos de colores" width="560"></a>
+</p>
 
-Arcade de precisión hipnótico para el navegador. Controles duales 360°/carriles, motor de audio darksynth procedural con sidechain ducking, game loop a 240 Hz y modo de sincronía tipo osu! que reacciona al audio en tiempo real.
-
-Inspirado en *Super Hexagon*, rediseñado con mecánicas de precisión modernas: **física orbital fluida a 360°, un sintetizador procedural con sidechain de audio real, voz robótica sintetizada, progresión geométrica y sincronía en vivo con música externa**.
+<p align="center">
+  <a href="https://obeskay.github.io/vertice/"><b>Juega ahora</b></a> · escritorio y táctil · <a href="README.md">English</a>
+</p>
 
 ---
 
-## Inicio rápido (sin build)
+## Ejecútalo
 
-VÉRTICE está hecho con ES Modules nativos y Three.js. No necesita bundler ni `npm install`; corre directo desde cualquier servidor HTTP local:
+Sin bundler y sin `npm install`. Sirve la carpeta con cualquier servidor estático:
 
 ```bash
-# Clona el repositorio
 git clone https://github.com/obeskay/vertice.git
 cd vertice
-
-# Sirve la carpeta con cualquier servidor HTTP estático
 python3 -m http.server 8089
 ```
 
