@@ -1,15 +1,16 @@
 import * as THREE from 'three';
+import { INK, ACCENT } from '../palette.js';
 
 /**
- * WallManager — Precision Swept Tunnel System
- * Generates geometric wall rings and delivers fair, razor-sharp swept collision detection.
- * Features:
- * - 16 dynamic rhythmic wall patterns (Spirals, Gauntlet, Chevron, Double Flank, Cannon, Slalom, Labyrinth, Hyper Ring, etc.)
- * - Swept radial band intersection (100% immune to tunneling and ghost deaths)
- * - Cached extruded trapezoid geometry for 240Hz zero GC overhead
- * - Guaranteed mercy first ring and balanced escape clearance
+ * WallManager — rings of wall that shrink toward the center.
+ * Picks patterns (spirals, zig-zags, double gates...), spaces each ring from
+ * the move it demands, and tests collision with a swept radial band so a fast
+ * wall can never skip over the player. The first ring always has its gap
+ * under the ship.
  */
 const TAU = Math.PI * 2;
+const PLAYER_RAD_S = 11; // Player.speed
+const STATIC_PATTERNS = new Set(['SINGLE_GAP', 'TUNNEL', 'PULSAR']);
 
 export class WallManager {
   constructor(scene) {
@@ -23,8 +24,9 @@ export class WallManager {
     this.wallThickness = 0.50;
     this.centerRadius = 1.05;
     this.spawnRadius = 7.6;
-    this.nearMissMargin = 0.20;
-    this.ghostTime = 0;
+    this.rng = Math.random; // the self-check swaps in a seeded one
+    this._speed = 5;
+    this._planned = null;
 
     this.currentPattern = 'SINGLE_GAP';
     this.patternStep = 0;
@@ -33,40 +35,27 @@ export class WallManager {
     this.spiralDirection = 1;
     this._stairsDir = 1;
 
-    this.geoCache = new Map(); // sides -> { fill, edges }
+    this.geoCache = new Map(); // sides -> sector geometry
 
-    this.material = new THREE.MeshBasicMaterial({
-      color: 0x00ff66,
-      side: THREE.DoubleSide
-    });
-    this.edgesMaterial = new THREE.LineBasicMaterial({
-      color: 0x06070a,
-      linewidth: 2
-    });
-
-    this.onRingSpawned = null; // hook: (ring) => void
+    this.material = new THREE.MeshBasicMaterial({ color: INK });
+    this.killerMaterial = new THREE.MeshBasicMaterial({ color: ACCENT });
   }
 
-  reset(sides = 6) {
+  reset(sides = 6, playerAngle = Math.PI / 2, speed = 5) {
     while (this.wallsGroup.children.length > 0) {
       this.wallsGroup.remove(this.wallsGroup.children[0]);
     }
     this.activeRings = [];
     this.spawnTimer = 0;
     this.patternStep = 0;
-    this.ghostTime = 0;
     this._mercyFirstRing = true;
+    this._mercyAngle = playerAngle;
+    this._speed = speed; // not the last run's: the first gap must not depend on history
+    this._planned = null;
     this.spawnRingPattern(sides);
   }
 
-  setColor(colorHex) {
-    if (typeof colorHex === 'number') this.material.color.setHex(colorHex);
-    else if (colorHex && colorHex.getHex) this.material.color.copy(colorHex);
-  }
-
-  /**
-   * Cached Trapezoidal Extruded Sector Geometry for any polygon side count
-   */
+  /** One flat trapezoid sector per side count, shared by every ring */
   getSectorGeometry(sides) {
     let cached = this.geoCache.get(sides);
     if (cached) return cached;
@@ -82,10 +71,7 @@ export class WallManager {
     shape.lineTo(Math.cos(0) * innerR, Math.sin(0) * innerR);
     shape.closePath();
 
-    const fill = new THREE.ExtrudeGeometry(shape, { depth: 0.16, bevelEnabled: false });
-    const edges = new THREE.EdgesGeometry(fill, 20);
-
-    cached = { fill, edges };
+    cached = new THREE.ShapeGeometry(shape);
     this.geoCache.set(sides, cached);
     return cached;
   }
@@ -94,18 +80,15 @@ export class WallManager {
    * Fixed Timestep Simulation Update
    */
   update(deltaTime, speed, sides, playerHitbox, suppressSpawn = false) {
-    this._lastHitbox = playerHitbox || this._lastHitbox;
-    this.spawnInterval = Math.max(0.46, 7.6 / speed);
+    this._speed = speed;
 
     if (!suppressSpawn) {
       this.spawnTimer += deltaTime;
       if (this.spawnTimer >= this.spawnInterval) {
-        this.spawnTimer = 0;
+        this.spawnTimer -= this.spawnInterval;
         this.spawnRingPattern(sides);
       }
     }
-
-    if (this.ghostTime > 0) this.ghostTime -= deltaTime;
 
     let collision = false;
     let nearMiss = null;
@@ -130,18 +113,21 @@ export class WallManager {
       // Swept radial band test
       const radialContact = newInner <= pHi && prevOuter >= pLo;
 
-      if (!ring.hit && this.ghostTime <= 0 && radialContact) {
+      if (!ring.hit && radialContact) {
         if (this.checkAngularHit(ring, playerHitbox, ring.sides)) {
-          collision = true;
+          collision = ring;
           ring.hit = true;
+        } else {
+          // Track the closest shave over the whole pass (a wall needs several steps to cross the band)
+          ring.minDist = Math.min(ring.minDist, this.minAngularDistanceToWall(ring, playerHitbox, ring.sides));
         }
       }
 
-      // Near-Miss test when wall safely clears the player hitbox
-      if (!ring.hit && !ring.passedPlayer && prevOuter >= pHi && newOuter < pLo) {
+      // Graze: the wall fully cleared the player after passing within the margin
+      if (!ring.hit && !ring.passedPlayer && newOuter < pLo) {
         ring.passedPlayer = true;
-        const dist = this.minAngularDistanceToWall(ring, playerHitbox, ring.sides);
-        if (dist > 0 && dist < this.nearMissMargin) {
+        const margin = Math.min(0.12, (TAU / ring.sides) * 0.16);
+        if (ring.minDist > 0 && ring.minDist < margin) {
           nearMiss = {
             x: Math.cos(playerHitbox.angle) * playerHitbox.radius,
             y: Math.sin(playerHitbox.angle) * playerHitbox.radius
@@ -169,33 +155,58 @@ export class WallManager {
     }
   }
 
-  spawnNow(sides) {
-    this.spawnRingPattern(sides);
-  }
-
-  crushNearbyWalls(playerRadius) {
-    for (const ring of this.activeRings) {
-      const outer = ring.radius * (this.centerRadius + this.wallThickness);
-      if (outer < playerRadius + 2.5) {
-        ring.hit = true;
-        ring.group.visible = false;
-      }
-    }
-  }
-
+  /**
+   * Emits the ring planned last time, then plans the next one and sizes the gap
+   * between them from the move it demands: every sequence is survivable at base
+   * steering speed, so spirals run dense and big jumps get room.
+   */
   spawnRingPattern(sides) {
+    if (this._planned && this._planned.sides !== sides) {
+      // Side count changed (rank up): drop the stale plan and leave one breather beat
+      this._planned = this._planRing(sides);
+      this.spawnInterval = 0.45;
+      return;
+    }
+    const ring = this._planned || this._planRing(sides);
+    this.createRingMesh(sides, ring.blocked, ring.rotSpeed);
+    this._planned = this._planRing(sides);
+    this.spawnInterval = this._delayBetween(ring, this._planned, sides);
+  }
+
+  _delayBetween(a, b, sides) {
+    // Worst case: the player sits in any gap of `a` and must reach the nearest gap of `b`
+    let steps = 0;
+    for (let p = 0; p < sides; p++) {
+      if (a.blocked[p]) continue;
+      let best = sides;
+      for (let g = 0; g < sides; g++) {
+        if (b.blocked[g]) continue;
+        const d = Math.abs(p - g);
+        best = Math.min(best, d, sides - d);
+      }
+      steps = Math.max(steps, best);
+    }
+    const speed = Math.max(1, this._speed);
+    const lock = 0.53 / speed;                              // time the ring occupies the player band
+    const travel = (steps + 0.5) * (TAU / sides) / PLAYER_RAD_S;
+    const buffer = Math.min(0.42, Math.max(0.16, 0.55 - speed * 0.03));
+    return lock + travel + buffer + (b.newPattern ? 0.22 : 0);
+  }
+
+  _planRing(sides) {
+    const rng = this.rng;
+    let newPattern = false;
     if (this._mercyFirstRing) {
       this._mercyFirstRing = false;
       this.currentPattern = 'SINGLE_GAP';
-      this.patternLength = 3;
+      this.patternLength = 1;
       this.patternStep = 0;
-      if (this._lastHitbox) {
-        const a = ((this._lastHitbox.angle % TAU) + TAU) % TAU;
-        this.patternGapIndex = Math.floor(a / (TAU / sides)) % sides;
-      }
-      this.spiralDirection = Math.random() < 0.5 ? 1 : -1;
+      const a = ((this._mercyAngle % TAU) + TAU) % TAU;
+      this.patternGapIndex = Math.floor(a / (TAU / sides)) % sides;
+      this.spiralDirection = rng() < 0.5 ? 1 : -1;
       this._stairsDir = this.spiralDirection;
     } else if (this.patternStep >= this.patternLength) {
+      newPattern = true;
       const allPatterns = sides <= 3
         ? ['SINGLE_GAP', 'TUNNEL', 'SPIRAL', 'TWISTER']
         : sides === 4
@@ -207,15 +218,17 @@ export class WallManager {
             'TWISTER', 'PULSAR', 'DOUBLE_REFLEX', 'CORRIDOR'
           ];
 
-      let next = allPatterns[Math.floor(Math.random() * allPatterns.length)];
+      let next = allPatterns[Math.floor(rng() * allPatterns.length)];
       if (next === this.currentPattern && allPatterns.length > 1) {
         next = allPatterns[(allPatterns.indexOf(next) + 1) % allPatterns.length];
       }
       this.currentPattern = next;
       this.patternStep = 0;
-      this.patternLength = 4 + Math.floor(Math.random() * 4);
-      this.patternGapIndex = Math.floor(Math.random() * sides);
-      this.spiralDirection = Math.random() < 0.5 ? 1 : -1;
+      this.patternLength = STATIC_PATTERNS.has(next)
+        ? 2 + Math.floor(rng() * 2)
+        : 4 + Math.floor(rng() * 4);
+      this.patternGapIndex = Math.floor(rng() * sides);
+      this.spiralDirection = rng() < 0.5 ? 1 : -1;
       this._stairsDir = this.spiralDirection;
     }
 
@@ -355,11 +368,11 @@ export class WallManager {
 
     // Safety guard: never generate a fully sealed ring
     if (blockedSectors.every(b => b)) {
-      blockedSectors[Math.floor(Math.random() * sides)] = false;
+      blockedSectors[Math.floor(rng() * sides)] = false;
     }
 
     this.patternStep++;
-    this.createRingMesh(sides, blockedSectors, rotSpeed);
+    return { sides, blocked: blockedSectors, rotSpeed, newPattern };
   }
 
   createRingMesh(sides, blockedSectors, rotSpeed = 0) {
@@ -373,14 +386,9 @@ export class WallManager {
         gaps.push(i);
         continue;
       }
-      const mesh = new THREE.Mesh(geo.fill, this.material);
+      const mesh = new THREE.Mesh(geo, this.material);
       mesh.rotation.z = i * sectorAngle;
       ringGroup.add(mesh);
-
-      const outline = new THREE.LineSegments(geo.edges, this.edgesMaterial);
-      outline.rotation.z = i * sectorAngle;
-      outline.position.z = 0.001;
-      ringGroup.add(outline);
     }
 
     ringGroup.scale.set(this.spawnRadius, this.spawnRadius, 1);
@@ -397,11 +405,16 @@ export class WallManager {
       gaps,
       sides,
       hit: false,
-      passedPlayer: false
+      passedPlayer: false,
+      minDist: Infinity
     };
     this.activeRings.push(ring);
+  }
 
-    if (this.onRingSpawned) this.onRingSpawned(ring);
+  /** Repaints the ring that ended the run so the player sees what hit them */
+  markKiller(ring) {
+    if (!ring) return;
+    for (const child of ring.group.children) child.material = this.killerMaterial;
   }
 
   checkAngularHit(ring, playerHitbox, sides) {

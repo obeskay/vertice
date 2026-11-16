@@ -1,20 +1,18 @@
 # VÉRTICE
 
-Arcade al estilo Super Hexagon para el navegador: orbita un polígono, cruza los muros que se cierran y encadena rozones. ES Modules nativos y Three.js, banda sonora darksynth procedural, sin build.
+Un arcade al estilo Super Hexagon para el navegador, sencillo como un botón. Los muros se cierran hacia el centro; guía tu nave por los huecos tanto como aguantes. Un solo modo, sin menús, y la dificultad sube poco a poco mientras más duras.
 
 <p align="center">
-  <a href="https://obeskay.github.io/vertice/"><img src="docs/media/vertice-demo.gif" alt="VÉRTICE: una nave orbitando un hexágono mientras se cierran anillos de colores" width="560"></a>
+  <a href="https://obeskay.github.io/vertice/"><img src="docs/media/vertice-demo.gif" alt="VÉRTICE: una nave naranja orbitando un hexágono oscuro mientras se cierran anillos oscuros sobre un fondo claro" width="560"></a>
 </p>
 
 <p align="center">
   <a href="https://obeskay.github.io/vertice/"><b>Juega ahora</b></a> · escritorio y táctil · <a href="README.md">English</a>
 </p>
 
----
+## Correrlo
 
-## Ejecútalo
-
-Sin bundler y sin `npm install`. Sirve la carpeta con cualquier servidor estático:
+Sin build ni `npm install`: ES modules nativos y Three.js incluido en `vendor/`.
 
 ```bash
 git clone https://github.com/obeskay/vertice.git
@@ -22,123 +20,50 @@ cd vertice
 python3 -m http.server 8089
 ```
 
-Abre `http://localhost:8089` en Chrome, Safari, Firefox o Edge.
+Abre `http://localhost:8089`. GitHub Pages publica `main` tal cual.
 
----
+## Cómo se juega
 
-## Mecánicas principales
-
-### 1. Doble esquema de control: Arcade 360° y Carriles
-
-- **Arcade 360° (predeterminado)**: navegación orbital suave alrededor del perímetro del polígono, con inclinación física de la nave (banking) y estelas de propulsión.
-- **Carriles discretos**: salta al instante entre los lados del polígono, para quien prefiere un movimiento tipo puzzle geométrico.
-- **Mouse / puntero**: seguimiento angular 1:1 del cursor, sin retraso de entrada.
-- **Táctil (móvil)**: zonas de toque izquierda/derecha en pantalla dividida; toca con dos dedos para activar el Turbo.
-
-### 2. Audio darksynth procedural con sidechain ducking
-
-- **Sintetizador propio en Web Audio**: genera arpegios dinámicos, sub-bajo pulsante y bombos 808 contundentes directamente en código, sin archivos de audio externos.
-- **Sidechain ducking**: cada golpe de bombo atenúa los canales de bajo y acordes para lograr una compresión electrónica con punch.
-- **Filtro pasa-bajos dinámico**: barre automáticamente la frecuencia de corte durante los power-ups de cámara lenta y en el Game Over.
-- **BPM en aceleración**: el tempo sube conforme avanza tu partida, desde el tempo base de cada modo (120–176 BPM) hasta un tope de 240 BPM.
-
-### 3. Locutor de voz robótica
-
-Un comentarista arcade integrado anuncia los momentos clave en tiempo real con la Web Speech API, sobre un chime de vocoder sintetizado:
-`"VÉRTICE... START!"`, nombres de rango (`"TRIÁNGULO"`, `"CUADRADO"`, `"HEXÁGONO"`, `"VÉRTICE"`…), `"ESCUDO"`, `"CALMA"`, `"FLOW COMBO!"`, `"HYPERDRIVE!"`, `"GAME OVER"`, `"NEW RECORD!"`.
-
-### 4. SYNC ♪ (modo osu! reactivo al audio)
-
-Haz clic en `SYNC ♪` en el menú principal para capturar el audio de una pestaña de YouTube, Spotify Web o SoundCloud con la API MediaStream del navegador. El motor rastrea en vivo los picos de frecuencia y sincroniza la aparición de muros, los pulsos del fondo y la velocidad de los muros con el BPM de la música.
-
----
-
-## Modos de juego
-
-| Modo | Rampa de velocidad | Características |
-|---|---|---|
-| **NORMAL** | 4.3 → 9.8 | Progresión geométrica clásica de Punto a Vértice. Curva de velocidad equilibrada. |
-| **HIPER** | 6.5 → 11.6 | Prueba de reflejos a alta velocidad para pilotos experimentados. Ventanas de reacción más cortas. |
-| **EXTREMO** | 8.8 → 13.5 | Velocidad implacable con inversiones de rotación repentinas e impredecibles. |
-| **ZEN** | 3.9 → 5.0 | Flujo infinito sin muerte. Ideal para calentar el ritmo. |
-
----
+- Toca el botón de jugar (o cualquier tecla de giro, `Espacio` o `Enter`) y sobrevive. Tu tiempo es tu marca; el navegador guarda tu mejor tiempo.
+- Cada 15 a 30 segundos la partida sube un escalón: los muros van más rápido, el giro es más fuerte y la figura gana lados (6 → 7 → 8 → 10 → 12). Después de unos 105 s sigue subiendo sola, despacio.
+- Si pasas a un pelo del borde de un muro suena una nota; encadena esos roces y la nota sube por la escala.
+- El muro que te mata se pinta de naranja. Cualquier tecla de giro o un toque empieza otra vez un momento después; dejar una tecla apretada durante el choque nunca reinicia por accidente.
+- La música es un arpegio suave en La menor que acelera con la partida. Todos los sonidos, de los roces al choque, usan la misma voz y la misma tonalidad. El botón de la bocina lo silencia y recuerda tu elección.
 
 ## Controles
 
-| Tecla / entrada | Acción | Comportamiento |
-|---|---|---|
-| `←` / `→` o `A` / `D` | Girar | Contraviraje instantáneo, cero sensación resbalosa |
-| `ESPACIO` / `S` / `↓` / clic derecho | **Phase Dash** | Salto orbital cuántico con 220 ms de invulnerabilidad (se recarga con rozes) |
-| `SHIFT` / `W` / `↑` | Turbo | Aumenta la velocidad orbital (×1.6) con líneas de velocidad |
-| **Cursor del mouse** | Seguimiento directo | La nave apunta al ángulo del cursor (clic derecho para Dash) |
-| **Controles táctiles** | Girar y Dash | Zonas de toque izquierda/derecha; botón central `DASH` |
-| `ENTER` / `R` | Empezar / reiniciar | Reinicio instantáneo, sin espera |
-| `ESC` / `P` | Pausa | Abre el menú de pausa |
+| Entrada | Acción |
+|---|---|
+| `←` / `→` o `A` / `D` | Girar |
+| Mitad izquierda / derecha de la pantalla | Girar (táctil o mouse) |
+| `Espacio` / `Enter` / `R` | Jugar / jugar otra vez |
+| `Esc` / `P` | Pausa |
 
----
-
-## Power-ups y mecánicas clave
-
-- **PHASE DASH** (`ESPACIO` / `S` / `↓` / clic derecho): ráfaga cuántica instantánea con 220 ms de invulnerabilidad. Atraviesa los muros que se cierran. Cooldown base de 2.8 s, que se reduce **1.0 s con cada roze (near-miss)**.
-- **COMBO HYPERDRIVE**: encadena rozes consecutivos (`x1 → x2 → x3 → x4 → x5`). Cada roze suena con una nota pentatónica ascendente (C5 → E6) y sube el multiplicador de combo (hasta ×8). Al llegar a 5 rozes se activa **HYPERDRIVE**: 2.0 s de fase fantasma, sacudida de pantalla y overdrive armónico del sintetizador.
-- **NAVE FANTASMA**: graba automáticamente a 20 Hz la trayectoria de tu mejor partida y proyecta en tiempo real una nave-sombra holográfica translúcida.
-- **ESCUDO** (cuadrado blanco): te salva de un choque. Absorbe el impacto y aplasta los muros cercanos.
-- **CALMA** (triángulo verde): activa 3.2 segundos de vuelo en cámara lenta, con un filtro pasa-bajos que hace sonar el audio sumergido y latidos rítmicos.
-- **PATRONES DINÁMICOS**: anillos giratorios **Twister**, compuertas pulsantes **Pulsar** y patrones **Double Reflex** y **Corridor**, además de 16 patrones clásicos.
-
----
-
-## Arquitectura y estructura del código
-
-El motor usa un **loop de simulación de paso fijo a 240 Hz** (`SIM_DT = 1/240`) con render WebGL interpolado a nivel subpíxel vía Three.js, para que la detección de colisiones siga siendo determinista incluso a velocidades de rotación extremas.
+## Código
 
 ```
-vertice/
-├── index.html               Dock del HUD neobrutalista, overlays e import map
-├── style.css                Tipografía Space Grotesk y estilos de UI de alto contraste
-├── assets/
-│   └── cover.png            Arte de portada
-├── vendor/
-│   └── three.module.js      Three.js autocontenido (funciona sin conexión)
-└── src/
-    ├── main.js              Game loop a 240 Hz, ruteo de entradas y máquina de estados
-    ├── engine/
-    │   ├── Renderer.js      Escena Three.js, roll/shake de cámara y gajos de fondo
-    │   ├── ShaderPass.js    Post-procesado (aberración cromática, speed lines, grano de película)
-    │   ├── AudioEngine.js   Sintetizador darksynth con sidechain ducking y filtros biquad
-    │   ├── VoiceEngine.js   Síntesis de voz robótica arcade
-    │   ├── PaletteManager.js Deriva continua de hue HSL y roles de color de alto contraste
-    │   ├── MusicSync.js     Detector de beats de audio externo para el modo SYNC (osu!)
-    │   └── ParticleSystem.js Estelas de propulsión, ondas expansivas y fragmentos de explosión
-    ├── game/
-    │   ├── Player.js        Física de movimiento dual 360°/carriles e inclinación (banking)
-    │   ├── WallManager.js   20 patrones rítmicos de obstáculos y colisión por barrido
-    │   ├── PowerUpManager.js Lógica de aparición de escudos y fichas de cámara lenta
-    │   ├── LevelSystem.js   Escalado de rangos, etapas poligonales y rotaciones orgánicas
-    │   └── ScoreSystem.js   Récords por modo, calificaciones (S+ a D) y puntajes locales
-    └── ui/
-        └── HUDManager.js    Overlays del DOM, toggles de ajustes y tablas de récords
+index.html, style.css     Un overlay (menú, pausa, resultado), el cronómetro y dos botones
+src/main.js               Loop de paso fijo a 240 Hz, entradas y máquina de estados (menu, playing, dying, paused, over)
+src/palette.js            Los tres colores: papel, tinta y acento
+src/engine/Renderer.js    Escena ortográfica de Three.js: gajos de fondo y polígono central
+src/engine/AudioEngine.js Música y efectos con WebAudio, todo con una sola voz de mazo
+src/engine/ParticleSystem.js Onda del roce y estallido del choque
+src/game/Player.js        Nave en órbita con contraviraje
+src/game/WallManager.js   Patrones de anillos, espaciado justo y colisión por barrido
+src/game/LevelSystem.js   La rampa de dificultad y los cambios de giro
+src/game/ScoreSystem.js   Tiempo de la partida y mejor tiempo
+src/ui/HUDManager.js      Estado del DOM del overlay, cronómetro y botón de sonido
 ```
 
----
+`docs/prompts/` y `docs/aprendizaje.md` describen versiones anteriores (modos, power-ups, voz, sincronía con música) y se quedan como historia.
 
-## Verificación estática
-
-Para verificar que todos los assets, imports y scripts locales estén completos:
+## Verificar
 
 ```bash
-# Revisa la integridad de los assets estáticos locales
-python3 -c "
-import os
-files = ['index.html', 'style.css', 'vendor/three.module.js', 'src/main.js', 'assets/cover.png']
-for f in files:
-    assert os.path.exists(f), f'Missing: {f}'
-print('All static assets verified successfully.')
-"
+node scripts/check-walls.mjs
 ```
 
----
+Revisa los roces, el primer anillo justo, el espaciado de anillos a velocidad baja y alta, los patrones con semilla, los cambios de giro y que la rampa de dificultad nunca baje.
 
 ## Licencia
 

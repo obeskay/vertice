@@ -2,168 +2,46 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>VÉRTICE — Neobrutalist Precision Arcade</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;900&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#f2efe9">
+  <title>Vértice</title>
   <link rel="stylesheet" href="style.css">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%230a0d10%27/%3E%3Cpath d=%27M16 5l9.5 5.5v11L16 27l-9.5-5.5v-11z%27 fill=%27none%27 stroke=%27%2300ff77%27 stroke-width=%273%27/%3E%3C/svg%3E">
-  
-  <!-- Local Vendor Import Map for Three.js (Offline Capable) -->
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%277%27 fill=%27%2324262b%27/%3E%3Cpath d=%27M16 5l9.5 5.5v11L16 27l-9.5-5.5v-11z%27 fill=%27none%27 stroke=%27%23e5553a%27 stroke-width=%273%27/%3E%3C/svg%3E">
   <script type="importmap">
-    {
-      "imports": {
-        "three": "./vendor/three.module.js"
-      }
-    }
+    { "imports": { "three": "./vendor/three.module.js" } }
   </script>
 </head>
-<body>
-  <!-- Canvas container for Three.js WebGL -->
+<body data-state="menu">
   <div id="canvas-container"></div>
 
-  <!-- Neobrutalist Clean Arcade HUD -->
-  <div id="hud">
-    <!-- Top Sleek Dock: Rank & Time -->
-    <header class="hud-dock">
-      <div class="dock-left">
-        <div class="dock-pill rank-pill">
-          <span id="rank-display">PUNTO</span>
-        </div>
-        <div class="dock-pill best-pill">
-          <span class="pill-label">RÉCORD</span>
-          <span id="best-display">00:00.0</span>
-        </div>
-        <div class="dock-pill dash-pill" id="dash-indicator">
-          <span class="pill-label">DASH</span>
-          <span id="dash-status">LISTO</span>
-        </div>
-      </div>
+  <div id="time" class="time" aria-hidden="true">0.00</div>
 
-      <div class="dock-right">
-        <div class="dock-pill combo-pill hidden" id="combo-indicator">
-          <span id="combo-multiplier" class="combo-mult">x2</span>
-          <span id="combo-text">COMBO</span>
-        </div>
-        <div class="dock-pill near-miss-pill hidden" id="near-miss-indicator">
-          <span id="near-miss-text">ROZE!</span>
-        </div>
-        <div class="dock-pill time-pill">
-          <span id="timer-display">00:00.0</span>
-        </div>
-      </div>
-    </header>
+  <div id="overlay">
+    <h1 class="wordmark">VÉRTICE</h1>
 
-    <!-- Center Level / Rank Up Notification -->
-    <div id="center-message" class="hidden">
-      <h1 id="message-subtitle">HEXÁGONO</h1>
-    </div>
+    <p id="result" class="result" aria-live="polite">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+      <span id="result-value">0.00</span>
+    </p>
 
-    <!-- Minimalist Start & Game Over Overlay -->
-    <div id="start-overlay" class="overlay">
-      <div class="neo-card">
-        <div class="brand-tag">NEOBRUTALIST ARCADE</div>
-        <h1 class="logo-title">VÉRTICE<span class="dot">.</span></h1>
+    <p id="best" class="best" hidden>
+      <svg class="icon" viewBox="0 0 24 24" aria-label="Récord"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+      <span id="best-value">0.00</span>
+    </p>
 
-        <!-- Mode Selector -->
-        <div class="mode-selector" id="mode-selector">
-          <button class="btn-mode active" data-mode="NORMAL">NORMAL</button>
-          <button class="btn-mode" data-mode="HIPER">HIPER</button>
-          <button class="btn-mode" data-mode="EXTREMO">EXTREMO</button>
-          <button class="btn-mode" data-mode="ZEN">ZEN</button>
-        </div>
-        
-        <!-- Game Over Stats Summary -->
-        <div id="game-stats-summary" class="stats-summary hidden">
-          <div id="record-badge" class="record-badge hidden">★ NUEVO RÉCORD ★</div>
-          <div class="stat-box">
-            <span class="stat-label">TIEMPO</span>
-            <span id="final-time" class="stat-value">00:00.0</span>
-          </div>
-          <div class="stat-box grade-box">
-            <span class="stat-label">CLASE</span>
-            <span id="final-grade" class="stat-value grade-val">S</span>
-          </div>
-          <div class="stat-box">
-            <span class="stat-label">ROZES</span>
-            <span id="final-near-misses" class="stat-value">0</span>
-          </div>
-          <div class="stat-box">
-            <span class="stat-label">TÍTULO</span>
-            <span id="final-title" class="stat-value title-val">PILOTO</span>
-          </div>
-        </div>
+    <button id="play" class="play" type="button" aria-label="Jugar" title="Jugar">
+      <svg class="icon icon-play" viewBox="0 0 24 24" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+      <svg class="icon icon-retry" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+    </button>
 
-        <button id="btn-start" class="btn-neo">
-          JUGAR
-        </button>
-
-        <div class="controls-pill">
-          <kbd class="key">ESPACIO</kbd> <span class="or-separator">dash</span>
-          <span class="key-divider">•</span>
-          <kbd class="key">SHIFT</kbd> <span class="or-separator">turbo</span>
-          <span class="key-divider">•</span>
-          <kbd class="key">←</kbd><kbd class="key">→</kbd> <span class="or-separator">girar</span>
-        </div>
-
-        <!-- Settings Buttons -->
-        <div class="settings-grid">
-          <button id="btn-control-toggle" class="btn-neo-sub">CTRL: ARCADE</button>
-          <button id="btn-voice-toggle" class="btn-neo-sub">VOZ: ON</button>
-          <button id="btn-audio-toggle" class="btn-neo-sub">AUDIO: ON</button>
-          <button id="btn-palette-toggle" class="btn-neo-sub">PALETA</button>
-          <button id="btn-sync-toggle" class="btn-neo-sub">SYNC ♪</button>
-          <button id="btn-leaderboard-toggle" class="btn-neo-sub">RÉCORDS</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Leaderboard Modal Overlay -->
-    <div id="leaderboard-overlay" class="overlay hidden">
-      <div class="neo-card leaderboard-card">
-        <div class="brand-tag">MEJORES TIEMPOS</div>
-        <h2 class="sub-title" id="lb-title">RÉCORDS — NORMAL</h2>
-        <div class="leaderboard-list" id="leaderboard-list">
-          <!-- Populated by JS -->
-        </div>
-        <button id="btn-close-leaderboard" class="btn-neo">VOLVER</button>
-      </div>
-    </div>
-
-    <!-- Dedicated Neobrutalist Pause Overlay -->
-    <div id="pause-overlay" class="overlay hidden">
-      <div class="neo-card">
-        <div class="brand-tag">PAUSA</div>
-        <h1 class="logo-title">EN PAUSA<span class="dot">.</span></h1>
-        
-        <button id="btn-resume" class="btn-neo">
-          CONTINUAR
-        </button>
-
-        <button id="btn-pause-restart" class="btn-neo-sub" style="font-size: 0.9rem; padding: 0.75rem;">
-          REINICIAR
-        </button>
-
-        <div class="controls-pill">
-          <kbd class="key">ESC</kbd> <span class="or-separator">continuar</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Intuitive Touch Overlay with Central Quick Dash -->
-    <div id="touch-controls">
-      <div id="touch-left" class="touch-zone">
-        <span class="arrow-icon">←</span>
-      </div>
-      <div id="touch-dash" class="touch-dash-zone">
-        <div class="touch-dash-btn">DASH</div>
-      </div>
-      <div id="touch-right" class="touch-zone">
-        <span class="arrow-icon">→</span>
-      </div>
-    </div>
+    <svg class="icon hint hint-left" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+    <svg class="icon hint hint-right" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>
   </div>
+
+  <button id="sound" class="sound" type="button" aria-label="Silenciar" title="Silenciar">
+    <svg class="icon icon-on" viewBox="0 0 24 24" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+    <svg class="icon icon-off" viewBox="0 0 24 24" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/></svg>
+  </button>
 
   <script type="module" src="src/main.js"></script>
 </body>
