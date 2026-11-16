@@ -49,8 +49,8 @@ The game is a PWA: on a phone, "Add to Home Screen" installs it full screen, and
 
 | Direction | Message |
 |---|---|
-| Game → page | `{ source: 'vertice', type: 'ready' }` once, then `{ source: 'vertice', type: 'state', state, time, best }` on every change (`menu`, `playing`, `paused`, `over`) |
-| Page → game | `{ source: 'vertice-host', type: 'play' }`, `{ ..., type: 'pause' }`, `{ ..., type: 'mute', on: true \| false }` |
+| Game → page | `{ source: 'vertice', type: 'ready' }` once, as soon as the first frame is on screen (fade the frame in on it), then `{ source: 'vertice', type: 'state', state, time, best }` on every change (`menu`, `playing`, `paused`, `over`) |
+| Page → game | `{ source: 'vertice-host', type: 'play' }`, `{ ..., type: 'pause' }`, `{ ..., type: 'mute', on: true \| false }`, `{ ..., type: 'scroll', y }` (the section's scroll progress, 0 to 1: on the waiting screens the world turns with it, one symmetry step per pass; ignored during a run and under reduced motion) |
 
 ```html
 <iframe src="https://obeskay.github.io/vertice/?embed=1" allow="autoplay" title="Vértice"></iframe>

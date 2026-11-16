@@ -21,6 +21,9 @@ const CHAIN_WINDOW = 1.5;   // s between grazes that still climbs the graze note
 const STEER_KEYS = { ArrowLeft: 1, KeyA: 1, ArrowRight: -1, KeyD: -1 };
 const START_KEYS = new Set(['Space', 'Enter', 'KeyR', ...Object.keys(STEER_KEYS)]);
 const TILT = [0, 0.42, 0.66, 0.83, 0.92, 1]; // perspective lean per stage, 1 = full
+const CRAWL = 0.12;   // world speed through the crash, after the freeze
+const TURN_W = 13;    // rad/s: the critically damped follow of the host's scroll (within 1 % in 0.51 s, never overshoots)
+const SPIN_IN = 0.8;  // s: a run's spin glides up from wherever the world was turning
 
 // ?embed=1: the game inside another page. That page frames it and owns the sound
 // toggle; the two talk only to each other (see README, Embed).
@@ -28,7 +31,9 @@ const EMBED = new URLSearchParams(location.search).has('embed') && window.parent
 // Only a web origin: a sandboxed or file: parent reads "null", which postMessage rejects
 const parentOrigin = location.ancestorOrigins?.[0] ?? (document.referrer && new URL(document.referrer).origin);
 const HOST = EMBED && /^https?:\/\//.test(parentOrigin) ? parentOrigin : null;
-const tell = (msg) => HOST && window.parent.postMessage({ source: 'vertice', ...msg }, HOST);
+const post = (msg) => window.parent.postMessage({ source: 'vertice', ...msg }, HOST);
+let held = []; // held until the first frame is on screen, so the host fades in a drawn game
+const tell = (msg) => HOST && (held ? held.push(msg) : post(msg));
 document.body.classList.toggle('embed', Boolean(HOST)); // no host to talk to: keep the own sound button
 
 class Game {
@@ -57,6 +62,8 @@ class Game {
     this.hitStop = 0;
     this.crashTime = 0;
     this.rotation = this.prevRotation = 0;
+    this.spin = this.spin0 = 0; // rad/s the world turns at, and where this run's spin started
+    this.turn = 0;              // where the host's scroll wants the waiting world
     this.chain = 0;
     this.lastGraze = -Infinity;
 
@@ -135,6 +142,8 @@ class Game {
   }
 
   start() {
+    // The spin the world shows now: a restart mid-crash picks up the crawl, not the run's full speed
+    const spin = this.state === 'dying' ? this.spin * CRAWL : this.spin;
     this.hint?.done();
     this.hint = null;
     this.state = 'playing';
@@ -144,11 +153,13 @@ class Game {
     this.player.reset();
     this.walls.reset(this.level.sides, this.player.angle, this.level.speed);
     this.renderer.setSides(this.level.sides);
-    this.setScene(0);
+    this.setScene(0, this.sceneIndex !== 0); // already there (the first run): no sweep
     this.particles.clear();
     this.accumulator = 0;
     this.hitStop = 0;
-    this.rotation = this.prevRotation = 0;
+    // The world keeps its angle and its spin: the run picks up from the waiting screen without a cut
+    this.prevRotation = this.rotation;
+    this.spin = this.spin0 = spin;
     this.chain = 0;
     this.lastGraze = -Infinity;
     this.beaten = false;
@@ -170,6 +181,15 @@ class Game {
     this.renderer.setScene(i, sweep);
     const s = SCENES[i % SCENES.length];
     this.hud.setColors(s.fa, s.acc, s.bg);
+  }
+
+  /** Embedded: the host's scroll (0..1 across its section) turns the waiting world, one symmetry step per pass */
+  scroll(y) {
+    const waiting = this.state === 'menu' || this.state === 'over';
+    if (waiting && !this.reducedMotion && this.scrollY !== undefined) {
+      this.turn += (y - this.scrollY) * Math.PI * 2 / this.renderer.sides;
+    }
+    this.scrollY = y;
   }
 
   pause() {
@@ -221,8 +241,10 @@ class Game {
       navigator.vibrate?.(8);
     }
 
+    const k = Math.min(1, this.score.time / SPIN_IN);
+    this.spin = this.spin0 + (this.level.rotationSpeed - this.spin0) * k * k * (3 - 2 * k);
     this.prevRotation = this.rotation;
-    this.rotation += this.level.rotationSpeed * dt;
+    this.rotation += this.spin * dt;
 
     if (result.collision) this.crash(result.collision);
   }
@@ -262,13 +284,22 @@ class Game {
       this.hud.setTime(this.score.time);
     } else if (this.state === 'dying') {
       this.crashTime += dt;
-      const slow = this.crashTime < 0.15 ? 0 : 0.12; // freeze, then crawl
+      const slow = this.crashTime < 0.15 ? 0 : CRAWL; // freeze, then crawl
       this.prevRotation = this.rotation;
-      this.rotation += this.level.rotationSpeed * dt * slow;
+      this.rotation += this.spin * dt * slow;
       if (this.crashTime >= CRASH_LENGTH) {
         this.state = 'over';
+        // Coast out of the crawl: aim the follow where it would stop, so it never turns back
+        this.spin *= CRAWL;
+        this.turn = this.rotation + this.spin / TURN_W;
         this.show('over', this.level.sides);
       }
+    } else if (this.state === 'menu' || this.state === 'over') {
+      // Follow the turn on a critically damped spring, closed form: position and velocity carry over
+      const x = this.rotation - this.turn, c = this.spin + TURN_W * x, e = Math.exp(-TURN_W * dt);
+      this.prevRotation = this.rotation;
+      this.rotation = this.turn + e * (x + c * dt);
+      this.spin = e * (this.spin - TURN_W * c * dt);
     }
 
     this.audio.update(this.score.time);
@@ -284,10 +315,20 @@ class Game {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
-  // 'ready' goes out before the first state; the host's replies arrive after this
-  // task, when the listener below is already attached
-  tell({ type: 'ready' });
   const game = window.__game = new Game();
+  // 'ready' once the first frame is on screen (two frames in), then the states held until then.
+  // The host's replies arrive after it, when the listener below is already attached.
+  // A frame the host keeps hidden gets no frames at all: a second later it hears 'ready' anyway.
+  const ready = () => {
+    if (!held) return;
+    post({ type: 'ready' });
+    held.forEach(post);
+    held = null;
+  };
+  if (HOST) {
+    requestAnimationFrame(() => requestAnimationFrame(ready));
+    setTimeout(ready, 1000);
+  }
   if (!navigator.connection?.saveData) {
     const later = window.requestIdleCallback ?? ((f) => setTimeout(f, 300));
     later(() => { if (game.state === 'menu') game.hint = loadHint(document.getElementById('hint')); });
@@ -299,6 +340,7 @@ window.addEventListener('DOMContentLoaded', () => {
       if (type === 'play') game.primary();
       else if (type === 'pause' && game.state === 'playing') game.pause();
       else if (type === 'mute' && game.audio.muted !== Boolean(on)) game.hud.setSound(!game.audio.toggleMute());
+      else if (type === 'scroll' && Number.isFinite(e.data.y)) game.scroll(Math.min(1, Math.max(0, e.data.y)));
     });
   } else if (!EMBED && 'serviceWorker' in navigator && isSecureContext) {
     navigator.serviceWorker.register('sw.js');

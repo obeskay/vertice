@@ -49,8 +49,8 @@ El juego es una PWA: en el teléfono, «Agregar a inicio» lo instala a pantalla
 
 | Sentido | Mensaje |
 |---|---|
-| Juego → página | `{ source: 'vertice', type: 'ready' }` una vez y luego `{ source: 'vertice', type: 'state', state, time, best }` en cada cambio (`menu`, `playing`, `paused`, `over`) |
-| Página → juego | `{ source: 'vertice-host', type: 'play' }`, `{ ..., type: 'pause' }`, `{ ..., type: 'mute', on: true \| false }` |
+| Juego → página | `{ source: 'vertice', type: 'ready' }` una vez, en cuanto el primer cuadro está en pantalla (ahí conviene aparecer el marco), y luego `{ source: 'vertice', type: 'state', state, time, best }` en cada cambio (`menu`, `playing`, `paused`, `over`) |
+| Página → juego | `{ source: 'vertice-host', type: 'play' }`, `{ ..., type: 'pause' }`, `{ ..., type: 'mute', on: true \| false }`, `{ ..., type: 'scroll', y }` (el avance del scroll por la sección, de 0 a 1: en las pantallas de espera el mundo gira con él, un paso de simetría por pasada; se ignora durante una partida y con movimiento reducido) |
 
 ```html
 <iframe src="https://obeskay.github.io/vertice/?embed=1" allow="autoplay" title="Vértice"></iframe>
