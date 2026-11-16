@@ -147,7 +147,8 @@ export class AudioEngine {
       const s = sixteenth(this.n);
       const at = s.time + this.offset;
       if (at > now + LOOKAHEAD) break;
-      if (at > now - 0.02) this._step(s, at); // late (unlocked mid-run): skip, don't burst
+      // Late (unlocked mid-run): skip, don't burst. A hair late plays now: a fresh context starts at 0, so `at` can be negative
+      if (at > now - 0.02) this._step(s, Math.max(at, now));
       this.n++;
     }
   }
